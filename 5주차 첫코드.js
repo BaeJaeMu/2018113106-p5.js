@@ -4,7 +4,6 @@ let bx=350,by=430,br=11,vx=3.4,vy=-2,g=.2,f=.88;
 
 let sx=[35,75,115,160,210,255,455,500,615,660];
 let sy=[55,90,45,78,105,62,58,92,75,50];
-
 let xx=[20,85,150,220,321,420,490,560,630];
 let ww=[55,58,55,58,58,58,55,58,50];
 let hh=[120,150,130,145,205,140,125,155,115];
@@ -14,16 +13,14 @@ function setup(){
 }
 
 function draw(){
+  control();
   mode();
   city();
   ground();
-
   goal(55,1);
   goal(645,-1);
-
   player(lx);
   player(rx);
-
   ball();
 }
 
@@ -52,7 +49,6 @@ function city(){
 
   noFill();
   strokeWeight(2);
-
   arc(95,130,55,25,PI,PI*2);
   arc(135,130,70,34,PI,PI*2);
 
@@ -117,20 +113,19 @@ function ground(){
 
 function goal(x,d){
   neon(5);
-
   line(x,405,x,485);
   line(x,405,x+55*d,405);
 }
 
 function player(x){
-  fill(nr,ng,nb);
-  noStroke();
+  let c=color(nr,ng,nb);
 
+  fill(c);
+  noStroke();
   ellipse(x+10,380,28);
 
   fill(31,35,66);
   neon(2);
-
   rect(x,playerY,20,90);
 }
 
@@ -140,25 +135,7 @@ function neon(w){
 }
 
 function mode(){
-  if(mouseX<233){
-    sky=1;
-  }else if(mouseX<466){
-    sky=2;
-  }else{
-    sky=3;
-  }
-
-  let colorMode;
-
-  if(mouseY<183){
-    colorMode=1;
-  }else if(mouseY<366){
-    colorMode=2;
-  }else{
-    colorMode=3;
-  }
-
-  switch(colorMode){
+  switch(sky){
     case 1:
       nr=80;
       ng=215;
@@ -176,6 +153,45 @@ function mode(){
       ng=120;
       nb=190;
       break;
+  }
+}
+
+function control(){
+  if(mouseIsPressed){
+    if(mouseX>80 && mouseX<300){
+      lx=mouseX;
+    }
+  }
+
+  if(keyIsDown(LEFT_ARROW)){
+    if(rx>400){
+      rx=rx-4;
+    }
+  }
+
+  if(keyIsDown(RIGHT_ARROW)){
+    if(rx<600){
+      rx=rx+4;
+    }
+  }
+}
+
+function mousePressed(){
+  if(sky==1){
+    sky=2;
+  }else if(sky==2){
+    sky=3;
+  }else{
+    sky=1;
+  }
+}
+
+function keyPressed(){
+  if(key=='r' || key=='R'){
+    bx=350;
+    by=430;
+    vx=3.4;
+    vy=-2;
   }
 }
 
