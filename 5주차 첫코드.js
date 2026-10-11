@@ -77,7 +77,12 @@ let jumpKey="w",jumpKeyUpper="W";
 function setup(){
   createCanvas(canvasW,canvasH);
 
-  unit=min(width,height);
+  unit=width;
+
+  if(height<unit){
+    unit=height;
+  }
+
   floorY=height*.62;
   groundY=height*.92;
 
@@ -99,8 +104,15 @@ function setup(){
 
   leftGoal=goalInset+goalW;
   rightGoal=width-goalInset-goalW;
-  minX=leftGoal+max(headR,playerW/2);
-  maxX=rightGoal-max(headR,playerW/2);
+
+  let halfW=headR;
+
+  if(playerW/2>halfW){
+    halfW=playerW/2;
+  }
+
+  minX=leftGoal+halfW;
+  maxX=rightGoal-halfW;
 
   startX=width/2;
   startY=height*.717;
@@ -266,12 +278,17 @@ function neon(w){
 
 function goal(x,d){
   let backX=x+goalW*d;
+  let barX=x;
+
+  if(backX<barX){
+    barX=backX;
+  }
 
   noStroke();
   fill(c);
 
   rect(
-    min(x,backX)-goalThick/2,
+    barX-goalThick/2,
     goalTop-goalThick/2,
     goalW+goalThick,
     goalThick
@@ -336,32 +353,52 @@ function moveBall(){
 
   if(by+br>=groundY){
     by=groundY-br;
-    vy=-abs(vy)*bounce;
 
-    if(abs(vy)<stopBounce){
+    if(vy>0){
+      vy=-vy;
+    }
+
+    vy*=bounce;
+
+    if(vy>-stopBounce && vy<stopBounce){
       vy=0;
     }
 
     vx*=friction;
 
-    if(abs(vx)<stopSpeed){
+    if(vx>-stopSpeed && vx<stopSpeed){
       vx=0;
     }
   }
 
   if(by<br){
     by=br;
-    vy=abs(vy)*bounce;
+
+    if(vy<0){
+      vy=-vy;
+    }
+
+    vy*=bounce;
   }
 
   if(bx<br){
     bx=br;
-    vx=abs(vx)*bounce;
+
+    if(vx<0){
+      vx=-vx;
+    }
+
+    vx*=bounce;
   }
 
   if(bx>width-br){
     bx=width-br;
-    vx=-abs(vx)*bounce;
+
+    if(vx>0){
+      vx=-vx;
+    }
+
+    vx*=bounce;
   }
 }
 
@@ -379,13 +416,22 @@ function hitPlayer(x,y){
 
 function bouncePlayer(x,y){
   let top=y-playerH-headR*2;
-  let halfW=max(headR,playerW/2);
+  let halfW=headR;
+
+  if(playerW/2>halfW){
+    halfW=playerW/2;
+  }
 
   if(by<top && vy>0){
     by=top-br;
   }else if(by>y){
     by=y+br;
-    vy=abs(kickY);
+    vy=kickY;
+
+    if(vy<0){
+      vy=-vy;
+    }
+
     return;
   }else if(bx<x){
     bx=x-halfW-br;
@@ -400,9 +446,14 @@ function bouncePlayer(x,y){
 
 function hitGoal(x,d){
   let backX=x+goalW*d;
+  let barX=x;
+
+  if(backX<barX){
+    barX=backX;
+  }
 
   hitRect(
-    min(x,backX)-goalThick/2,
+    barX-goalThick/2,
     goalTop-goalThick/2,
     goalW+goalThick,
     goalThick
@@ -419,8 +470,19 @@ function hitGoal(x,d){
 function hitRect(x,y,w,h){
   let dx=bx-(x+w/2);
   let dy=by-(y+h/2);
-  let overlapX=w/2+br-abs(dx);
-  let overlapY=h/2+br-abs(dy);
+  let distanceX=dx;
+  let distanceY=dy;
+
+  if(distanceX<0){
+    distanceX=-distanceX;
+  }
+
+  if(distanceY<0){
+    distanceY=-distanceY;
+  }
+
+  let overlapX=w/2+br-distanceX;
+  let overlapY=h/2+br-distanceY;
 
   if(overlapX<=0 || overlapY<=0){
     return;
@@ -429,19 +491,35 @@ function hitRect(x,y,w,h){
   if(overlapX<overlapY){
     if(dx<0){
       bx=x-br;
-      vx=-abs(vx)*bounce;
+
+      if(vx>0){
+        vx=-vx;
+      }
     }else{
       bx=x+w+br;
-      vx=abs(vx)*bounce;
+
+      if(vx<0){
+        vx=-vx;
+      }
     }
+
+    vx*=bounce;
   }else{
     if(dy<0){
       by=y-br;
-      vy=-abs(vy)*bounce;
+
+      if(vy>0){
+        vy=-vy;
+      }
     }else{
       by=y+h+br;
-      vy=abs(vy)*bounce;
+
+      if(vy<0){
+        vy=-vy;
+      }
     }
+
+    vy*=bounce;
   }
 }
 
