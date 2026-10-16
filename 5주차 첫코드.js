@@ -1,4 +1,7 @@
-
+ // 주제명: NIGHT CITY - ENERGY RELAY
+ // 주제설명: 떨어지는 에너지 공을 받아 중계기에 전달하고, 장애물을 피해 출구에 도달하는 3단계 게임
+ // 학번: 2018113106
+ // 이름: 배재무
 let canvasW=800,canvasH=600;
 let sky=0,c,unit,floorY,groundY;
 let stage=1,lastStage=3,state=-1;
