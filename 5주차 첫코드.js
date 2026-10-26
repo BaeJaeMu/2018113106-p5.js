@@ -1,7 +1,3 @@
- // 주제명: NIGHT CITY - ENERGY RELAY
- // 주제설명: 떨어지는 에너지 공을 받아 중계기에 전달하고, 장애물을 피해 출구에 도달하는 3단계 게임
- // 학번: 2018113106
- // 이름: 배재무
 let canvasW=800,canvasH=600;
 let sky=0,c,unit,floorY,groundY;
 let stage=1,lastStage=3,state=-1;
@@ -101,7 +97,7 @@ async function setup(){
   relayRangeX=width*.156;
   relayMinY=height*.44;
   relayRangeY=height*.12;
-  
+
   randomTargetMinX=width*.6;
   randomTargetMaxX=width*.8;
   randomTargetMinY=height*.5;
@@ -145,31 +141,6 @@ async function setup(){
   startAngle=-PI/5;
   c=color(colors[sky][0],colors[sky][1],colors[sky][2]);
   resetStage();
-}
-
-function playEffect(sound){
-  if(sound){
-    sound.play();
-  }
-}
-
-function draw(){
-  if(state==0){
-    control();
-    moveTarget();
-    moveObstacles();
-    if(state==0) moveBall();
-    if(state==0 && opened && px>exitX-exitW/2 && py>=groundY){
-      if(stage<lastStage) state=1;
-      else state=3;
-      playEffect(clapSound);
-    }
-  }
-  city();
-  ground();
-  displayObjects();
-  player(px,py);
-  displayText();
 }
 
 function city(){
@@ -244,20 +215,7 @@ function player(x,y){
   rect(x-pw/2,y-ph,pw,ph);
   fill(c);
   ellipse(x,y-ph-headR,headR*2);
-  push();
-  translate(x,y-armOffset);
-  rotate(angle);
-  neon(armLine);
-  line(0,0,armLength,0);
-  pop();
-  if(ballMode==1){
-    if(ballImg) image(ballImg,x+armLength*cos(angle),y-armOffset+armLength*sin(angle),br*2,br*2);
-    else{
-      noStroke();
-      fill(80,215,235);
-      ellipse(x+armLength*cos(angle),y-armOffset+armLength*sin(angle),br*2);
-    }
-  }
+  drawArm(x,y);
 }
 
 function displayObjects(){
@@ -290,107 +248,6 @@ function displayObjects(){
       ellipse(obstacleX[i],groundY-obstacleSize/2,obstacleSize);
     }
   }
-}
-
-function control(){
-  if(keyIsDown(LEFT_ARROW)) speedX-=accel;
-  if(keyIsDown(RIGHT_ARROW)) speedX+=accel;
-  if(keyIsDown("a") || keyIsDown("A")) angle-=angleStep;
-  if(keyIsDown("d") || keyIsDown("D")) angle+=angleStep;
-  speedX*=friction;
-  speedX=constrain(speedX,-maxSpeed,maxSpeed);
-  px=constrain(px+speedX,pw,width-pw);
-  angle=constrain(angle,-PI,0);
-  speedY+=gravity;
-  py+=speedY;
-  if(py>=groundY){
-    py=groundY;
-    speedY=0;
-  }
-}
-
-function hitPlayer(x,y,w,h){
-  return px+pw/2>x-w/2 && px-pw/2<x+w/2 &&
-         py>y-h/2 && py-ph-headR*2<y+h/2;
-}
-
-function moveTarget(){
-  if(stage>1 && !opened){
-    targetX=relayMinX+(sin(tx)+1)*relayRangeX/2;
-    targetY=relayMinY+(cos(ty)+1)*relayRangeY/2;
-    tx+=rate;
-    ty+=rate*.8;
-  }
-}
-
-function moveObstacles(){
-  for(let i=0;i<obstacleCount;i++){
-    obstacleX[i]-=obstacleSpeed;
-    if(obstacleX[i]<-obstacleSize){
-      obstacleX[i]=width+random(obstacleMinGap,obstacleMaxGap);
-    }
-    if(state==0 && hitPlayer(obstacleX[i],groundY-obstacleSize/2,obstacleSize,obstacleSize)){
-      state=2;
-      playEffect(burstSound);
-    }
-  }
-}
-
-function moveBall(){
-  if(ballMode==0){
-    bvy+=ballGravity;
-    by+=bvy;
-    if(hitPlayer(bx,by,br*2,br*2)){
-      ballMode=1;
-      playEffect(catchSound);
-    }else if(by+br>=groundY){
-      state=2;
-      playEffect(burstSound);
-    }
-  }else if(ballMode==2){
-    bx+=bvx;
-    by+=bvy;
-    if(bx+br>targetX-targetSize/2 && bx-br<targetX+targetSize/2 &&
-       by+br>targetY-targetSize/2 && by-br<targetY+targetSize/2){
-      opened=true;
-      ballMode=3;
-    }else if(bx<-br || bx>width+br || by<-br || by>groundY){
-      dropBall();
-      if(stage==1){
-        targetX=random(randomTargetMinX,randomTargetMaxX);
-        targetY=random(randomTargetMinY,randomTargetMaxY);
-      }
-    }
-  }
-}
-
-function dropBall(){
-  bx=random(ballMinX,ballMaxX);
-  by=ballStartY;
-  bvx=0;
-  bvy=ballStartSpeed;
-  ballMode=0;
-}
-
-function resetStage(){
-  px=startX;
-  py=groundY;
-  speedX=0;
-  speedY=0;
-  angle=startAngle;
-  opened=false;
-  targetX=startTargetX;
-  targetY=startTargetY;
-  tx=random(10);
-  ty=random(10,20);
-  targetSize=baseTargetSize-stage*targetSizeStep;
-  rate=rateStep*stage;
-  obstacleCount=stage-1;
-  obstacleSpeed=obstacleBaseSpeed+stage*obstacleSpeedStep;
-  for(let i=0;i<obstacleCount;i++){
-    obstacleX[i]=obstacleStartX+i*obstacleGap;
-  }
-  dropBall();
 }
 
 function displayText(){
@@ -432,19 +289,53 @@ function displayText(){
   }
 }
 
-function mousePressed(){
-  if(mouseX>=0 && mouseX<width && mouseY>=0 && mouseY<height){
-    if(mouseY<themeLimitY){
-      sky=(sky+1)%bg.length;
-      c=color(colors[sky][0],colors[sky][1],colors[sky][2]);
-    }else if(state==0 && ballMode==1){
-      bx=px+armLength*cos(angle);
-      by=py-armOffset+armLength*sin(angle);
-      bvx=shotSpeed*cos(angle);
-      bvy=shotSpeed*sin(angle);
-      ballMode=2;
+function draw(){
+  if(state==0){
+    control();
+    moveTarget();
+    moveObstacles();
+    if(state==0) moveBall();
+    if(state==0 && opened && px>exitX-exitW/2 && py>=groundY){
+      if(stage<lastStage) state=1;
+      else state=3;
+      playEffect(clapSound);
     }
   }
+  city();
+  ground();
+  displayObjects();
+  player(px,py);
+  displayText();
+}
+
+function playEffect(sound){
+  if(sound){
+    sound.play();
+  }
+}
+
+function dropBall(){
+  bx=random(ballMinX,ballMaxX);
+  by=ballStartY;
+  bvx=0;
+  bvy=ballStartSpeed;
+  ballMode=0;
+}
+
+function resetStage(){
+  px=startX;
+  py=groundY;
+  speedX=0;
+  speedY=0;
+  angle=startAngle;
+  opened=false;
+  targetX=startTargetX;
+  targetY=startTargetY;
+  tx=random(10);
+  ty=random(10,20);
+  setTarget();
+  setObstacles();
+  dropBall();
 }
 
 function keyPressed(){
@@ -473,5 +364,135 @@ function keyPressed(){
       resetStage();
       state=0;
       break;
+  }
+}
+
+function mousePressed(){
+  if(mouseX>=0 && mouseX<width && mouseY>=0 && mouseY<height){
+    if(mouseY<themeLimitY){
+      sky=(sky+1)%bg.length;
+      c=color(colors[sky][0],colors[sky][1],colors[sky][2]);
+    }else if(state==0 && ballMode==1){
+      shootBall();
+    }
+  }
+}
+
+function control(){
+  movePlayer();
+  aim();
+  speedY+=gravity;
+  py+=speedY;
+  if(py>=groundY){
+    py=groundY;
+    speedY=0;
+  }
+}
+
+function moveBall(){
+  if(ballMode==0){
+    bvy+=ballGravity;
+    by+=bvy;
+    if(px+pw/2>bx-br && px-pw/2<bx+br &&
+       py>by-br && py-ph-headR*2<by+br){
+      ballMode=1;
+      playEffect(catchSound);
+    }else if(by+br>=groundY){
+      state=2;
+      playEffect(burstSound);
+    }
+  }else if(ballMode==2){
+    moveShot();
+  }
+}
+
+function setTarget(){
+  targetSize=baseTargetSize-stage*targetSizeStep;
+  rate=rateStep*stage;
+}
+
+function moveTarget(){
+  if(stage>1 && !opened){
+    targetX=relayMinX+(sin(tx)+1)*relayRangeX/2;
+    targetY=relayMinY+(cos(ty)+1)*relayRangeY/2;
+    tx+=rate;
+    ty+=rate*.8;
+  }
+}
+
+function movePlayer(){
+  if(keyIsDown(LEFT_ARROW)) speedX-=accel;
+  if(keyIsDown(RIGHT_ARROW)) speedX+=accel;
+  speedX*=friction;
+  speedX=constrain(speedX,-maxSpeed,maxSpeed);
+  px=constrain(px+speedX,pw,width-pw);
+}
+
+function aim(){
+  if(keyIsDown("a") || keyIsDown("A")) angle-=angleStep;
+  if(keyIsDown("d") || keyIsDown("D")) angle+=angleStep;
+  angle=constrain(angle,-PI,0);
+}
+
+function drawArm(x,y){
+  let armX=x+armLength*cos(angle);
+  let armY=y-armOffset+armLength*sin(angle);
+  neon(armLine);
+  line(x,y-armOffset,armX,armY);
+  if(ballMode==1){
+    if(ballImg) image(ballImg,armX,armY,br*2,br*2);
+    else{
+      noStroke();
+      fill(80,215,235);
+      ellipse(armX,armY,br*2);
+    }
+  }
+}
+
+function shootBall(){
+  bx=px+armLength*cos(angle);
+  by=py-armOffset+armLength*sin(angle);
+  bvx=shotSpeed*cos(angle);
+  bvy=shotSpeed*sin(angle);
+  ballMode=2;
+}
+
+function moveShot(){
+  bx+=bvx;
+  by+=bvy;
+  if(bx+br>targetX-targetSize/2 && bx-br<targetX+targetSize/2 &&
+     by+br>targetY-targetSize/2 && by-br<targetY+targetSize/2){
+    opened=true;
+    ballMode=3;
+  }else if(bx<-br || bx>width+br || by<-br || by>groundY){
+    dropBall();
+    if(stage==1){
+      targetX=random(randomTargetMinX,randomTargetMaxX);
+      targetY=random(randomTargetMinY,randomTargetMaxY);
+    }
+  }
+}
+
+function setObstacles(){
+  obstacleCount=stage-1;
+  obstacleSpeed=obstacleBaseSpeed+stage*obstacleSpeedStep;
+  for(let i=0;i<obstacleCount;i++){
+    obstacleX[i]=obstacleStartX+i*obstacleGap;
+  }
+}
+
+function moveObstacles(){
+  for(let i=0;i<obstacleCount;i++){
+    obstacleX[i]-=obstacleSpeed;
+    if(obstacleX[i]<-obstacleSize){
+      obstacleX[i]=width+random(obstacleMinGap,obstacleMaxGap);
+    }
+    if(state==0 &&
+       px+pw/2>obstacleX[i]-obstacleSize/2 &&
+       px-pw/2<obstacleX[i]+obstacleSize/2 &&
+       py>groundY-obstacleSize && py-ph-headR*2<groundY){
+      state=2;
+      playEffect(burstSound);
+    }
   }
 }
