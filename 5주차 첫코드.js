@@ -1,16 +1,8 @@
-let canvasW=800,canvasH=600;
-let sky=0,c,unit,floorY,groundY;
-let stage=1,lastStage=3,state=-1;
-let px,py,pw,ph,headR,speedX=0,speedY=0;
-let accel,maxSpeed,friction=.86,gravity,jumpPower;
-let angle,angleStep=.035,armLength;
-let bx,by,br,bvx,bvy,shotSpeed,ballMode;
-let targetX,targetY,targetSize,tx,ty,rate,opened=false;
-let obstacleX=[],obstacleSize,obstacleSpeed,obstacleCount;
-let exitX,exitW,exitH;
-let ballImg,targetImg,obstacleImg;
-let catchSound,burstSound,clapSound;
-let stageName=["FIRST DELIVERY","MOVING RELAY","NIGHT CROSSING"];
+let canvasW=800,canvasH=600,unit;
+let sky=0,c,stage=1,lastStage=3,state=-1;
+let images=[],sounds=[],effect=-1;
+let imageFiles=["circle1.png","square.png","bomb.png","card.png"];
+let soundFiles=["catch.mp3","burst.mp3","claps.mp3"];
 let bg=[[67,68,145],[78,55,143],[43,38,100]];
 let colors=[[80,215,235],[180,120,230],[235,120,190]];
 let sx=[.05,.107,.164,.229,.3,.364,.65,.714,.879,.943];
@@ -18,150 +10,110 @@ let sy=[.1,.164,.082,.142,.191,.113,.105,.167,.136,.091];
 let xx=[.029,.121,.214,.314,.459,.6,.7,.8,.9];
 let ww=[.079,.083,.079,.083,.083,.083,.079,.083,.071];
 let hh=[.218,.273,.236,.264,.373,.255,.227,.282,.209];
+let cloudX=[.136,.193],cloudW=[.079,.1],cloudH=[.045,.062];
+let floorY,groundY,centerX,thinLine,normalLine,windowGap;
+let paddle,accel,speed,friction=.8,minY,maxY,oldMouseX,oldMouseY;
+let bx,by,br,vx,vy,oldBallY,gravity,ballSpeed;
+let ballRate=.45,reboundBoost=1.1,bounceSpeed;
+let launchVY,angleLimit,ballActive=false,serve=false;
+let blastX,blastY,blastSize;
+let gx=[],gy=[],baseX=[],baseY=[],on=[],goneTime=[],gt=[],gv=[];
+let goalCount,goalSize,goalRange,goalSpeed,noiseRange,noiseRate=.008;
+let restoreTime=1800,noiseSeedRange=100;
+let ex=[],ey=[],enemyCount,enemyR,enemySpeed,patrolSpeed,patrolY;
+let energy=0,energyBase=3,energyStep=3,energyNeed,dice=0,diceSides=3;
+let cardStage=0,bombIndex,cardCount=3,cardX=[],cardY,cardW,cardH,cardGap;
+let routeX=0,routeY=0,gridX,gridY,gridSize;
+let circuit=[[0,0,1,0,0],[1,0,1,0,1],[0,0,0,0,0],[0,1,1,1,0],[0,0,1,0,0]];
+let titleY,infoY,noticeY,helpY,titleSize,smallSize,bigSize;
+let panelX,panelY,panelW,panelH,messageY,guideY;
+let barX,barY,barW,barH,themeY,notice="";
+let messages=["ENTER: 시작","","카드 선택","공이 폭탄에 닿았습니다","ALL CLEAR","미로 탈출"];
+let guides=["공 반사 → 에너지 충전 → 카드 → 미로","","폭탄 카드: 다시 충전 / 정상 카드: 미로 이동","ENTER 또는 R: 같은 스테이지 재시작","R: 처음부터","방향키로 노란 출구에 도착하세요"];
 
-let moonX,moonY,moonSize,moonInner,coverX;
-let coverY,coverSize,cloudX1,cloudX2,cloudY;
-let cloudW1,cloudW2,cloudH1,cloudH2,windowTop;
-let windowBottom,windowGap,windowSide,courtLeftTop,courtRightTop;
-let courtLeftBottom,courtRightBottom,courtOffsetY,startX,startTargetX;
-let startTargetY,ballMinX,ballMaxX,ballStartY,ballStartSpeed;
-let relayMinX,relayRangeX,relayMinY,relayRangeY,randomTargetMinX;
-let randomTargetMaxX,randomTargetMinY,randomTargetMaxY,obstacleMinGap,obstacleMaxGap;
-let obstacleStartX,obstacleGap,obstacleBaseSpeed,obstacleSpeedStep,baseTargetSize;
-let targetSizeStep,centerX,centerY,titleY,stageY;
-let missionY,controlsY,messageY,guideY,themeLimitY;
-let panelX,panelY,panelW,panelH,nameSize;
-let stageTextSize,controlsSize,messageSize,guideSize,starLine;
-let normalLine,windowLine,courtLine,armLine,relayLine;
-let armOffset,doorInnerW,doorInnerH,ballGravity,startAngle;
-let rateStep=.0065;
-
-async function setup(){
+function setup(){
   createCanvas(canvasW,canvasH);
-  ballImg=await loadImage("circle1.png");
-  targetImg=await loadImage("square.png");
-  obstacleImg=await loadImage("bomb.png");
-  catchSound=await loadSound("catch.mp3");
-  burstSound=await loadSound("burst.mp3");
-  clapSound=await loadSound("claps.mp3");
   imageMode(CENTER);
+  textAlign(CENTER,CENTER);
   unit=width;
   if(height<unit) unit=height;
-  floorY=height*.62;
-  groundY=height*.88;
-  pw=width*.028;
-  ph=height*.09;
-  headR=unit*.018;
-  accel=width*.0007;
-  maxSpeed=width*.006;
-  gravity=height*.00055;
-  jumpPower=-height*.014;
-  armLength=unit*.05;
-  br=unit*.018;
-  shotSpeed=unit*.019;
-  obstacleSize=unit*.055;
-  exitX=width*.92;
-  exitW=width*.055;
-  exitH=height*.16;
-  moonX=width*.807;
-  moonY=height*.23;
-  moonSize=unit*.25;
-  moonInner=unit*.22;
-  coverX=width*.85;
-  coverY=height*.22;
-  coverSize=unit*.19;
-  cloudX1=width*.136;
-  cloudX2=width*.193;
-  cloudY=height*.25;
-  cloudW1=width*.079;
-  cloudW2=width*.1;
-  cloudH1=height*.045;
-  cloudH2=height*.062;
-  windowTop=height*.025;
-  windowBottom=height*.015;
-  windowGap=height*.04;
-  windowSide=width*.012;
-  courtLeftTop=width*.16;
-  courtRightTop=width*.84;
-  courtLeftBottom=width*.03;
-  courtRightBottom=width*.97;
-  courtOffsetY=height*.05;
-  startX=width*.2;
-  startTargetX=width*.73;
-  startTargetY=height*.61;
-  ballMinX=width*.14;
-  ballMaxX=width*.3;
-  ballStartY=height*.2;
-  ballStartSpeed=height*.001;
-  relayMinX=width*.512;
-  relayRangeX=width*.156;
-  relayMinY=height*.44;
-  relayRangeY=height*.12;
-
-  randomTargetMinX=width*.6;
-  randomTargetMaxX=width*.8;
-  randomTargetMinY=height*.5;
-  randomTargetMaxY=height*.67;
-  obstacleMinGap=width*.15;
-  obstacleMaxGap=width*.4;
-  obstacleStartX=width*1.05;
-  obstacleGap=width*.6;
-  obstacleBaseSpeed=width*.001;
-  obstacleSpeedStep=width*.0007;
-  baseTargetSize=unit*.12;
-  targetSizeStep=unit*.02;
-  centerX=width/2;
-  centerY=height/2;
-  titleY=height*.045;
-  stageY=height*.095;
-  missionY=height*.145;
-  controlsY=height*.95;
-  messageY=height*.44;
-  guideY=height*.56;
-  themeLimitY=height*.17;
-  panelX=width*.08;
-  panelY=height*.32;
-  panelW=width*.84;
-  panelH=height*.36;
-  nameSize=unit*.035;
-  stageTextSize=unit*.026;
-  controlsSize=unit*.023;
-  messageSize=unit*.05;
-  guideSize=unit*.025;
-  starLine=unit*.004;
-  normalLine=unit*.002;
-  windowLine=unit*.0015;
-  courtLine=unit*.003;
-  armLine=unit*.009;
-  relayLine=unit*.005;
-  armOffset=ph*.65;
-  doorInnerW=exitW*.6;
-  doorInnerH=exitH*.9;
-  ballGravity=gravity*.18;
-  startAngle=-PI/5;
+  floorY=height*.62; groundY=height*.92; centerX=width/2;
+  thinLine=unit*.0015; normalLine=unit*.003; windowGap=height*.04;
+  minY=height*.22; maxY=height*.87;
+  paddle={x:centerX,y:maxY,w:width*.19,h:height*.025,vx:0,vy:0};
+  accel=width*.0025; speed=width*.01;
+  br=unit*.018; gravity=height*.00055*ballRate*ballRate;
+  ballSpeed=width*.004*ballRate; launchVY=-height*.025*ballRate;
+  bounceSpeed=height*.03*ballRate*reboundBoost;
+  blastSize=unit*.14;
+  angleLimit=PI/4;
+  goalSize=unit*.085; goalRange=width*.025;
+  goalSpeed=width*.00025; noiseRange=height*.012;
+  enemyR=unit*.05; patrolSpeed=width*.001;
+  patrolY=height*.44;
+  cardY=height*.53; cardW=unit*.16; cardH=unit*.23; cardGap=width*.21;
+  gridSize=unit*.055; gridX=centerX-circuit[0].length*gridSize/2; gridY=height*.4;
+  titleY=height*.045; infoY=height*.1; noticeY=height*.19;
+  helpY=height*.96; themeY=height*.075;
+  titleSize=unit*.035; smallSize=unit*.025; bigSize=unit*.045;
+  panelX=width*.07; panelY=height*.28; panelW=width*.86; panelH=height*.48;
+  messageY=height*.34; guideY=height*.71;
+  barX=width*.25; barY=height*.14; barW=width*.5; barH=height*.018;
   c=color(colors[sky][0],colors[sky][1],colors[sky][2]);
+  for(let i=0;i<cardCount;i++) cardX[i]=centerX+(i-(cardCount-1)/2)*cardGap;
   resetStage();
+  for(let i=0;i<imageFiles.length;i++) loadPicture(i);
+  for(let i=0;i<soundFiles.length;i++) loadEffect(i);
+}
+
+function draw(){
+  if(state==0){
+    mouseControl();
+    keyboardControl();
+    inertia();
+    restoreGoals();
+    driftGoals();
+    moveTargets();
+    serveBall();
+    moveBall();
+    if(ballActive){
+      bounceBall();
+      chaseBomb();
+      patrolBomb();
+      checkBomb();
+      if(state==0) checkTargets();
+    }
+  }
+  city();
+  ground();
+  objects();
+  displayText();
+  if(effect>=0){
+    if(sounds[effect]) sounds[effect].play();
+    effect=-1;
+  }
 }
 
 function city(){
   let b=skyColor();
   background(b[0],b[1],b[2]);
+  let mx=width*.807,my=height*.23,moonSize=unit*.25;
   noStroke();
   fill(205,110,185);
-  ellipse(moonX,moonY,moonSize);
+  ellipse(mx,my,moonSize);
   fill(222,142,202);
-  ellipse(moonX,moonY,moonInner);
-  if(sky==2){
+  ellipse(mx,my,moonSize*.88);
+  if(sky==bg.length-1){
     fill(b[0],b[1],b[2]);
-    ellipse(coverX,coverY,coverSize);
+    ellipse(width*.85,height*.22,unit*.19);
   }
   stroke(238);
-  strokeWeight(starLine);
+  strokeWeight(normalLine);
   for(let i=0;i<sx.length;i++) point(sx[i]*width,sy[i]*height);
   noFill();
-  strokeWeight(normalLine);
-  arc(cloudX1,cloudY,cloudW1,cloudH1,PI,PI*2);
-  arc(cloudX2,cloudY,cloudW2,cloudH2,PI,PI*2);
+  for(let i=0;i<cloudX.length;i++){
+    arc(cloudX[i]*width,height*.25,cloudW[i]*width,cloudH[i]*height,PI,PI*2);
+  }
   for(let i=0;i<xx.length;i++) building(i);
 }
 
@@ -169,39 +121,36 @@ function skyColor(){
   return bg[sky];
 }
 
+function requiredEnergy(level){
+  return level*energyStep+energyBase;
+}
+
 function building(i){
-  let x=xx[i]*width,w=ww[i]*width;
-  let h=hh[i]*height,y=floorY-h;
+  let x=xx[i]*width,w=ww[i]*width,h=hh[i]*height,y=floorY-h;
+  let side=width*.012,top=height*.025,bottom=height*.015;
+  fill(27,29,68);
   if(i==4) fill(38,35,88);
-  else fill(27,29,68);
   stroke(20,21,50);
   strokeWeight(normalLine);
   rect(x,y,w,h);
-  neon(windowLine);
-  for(let y2=y+windowTop;y2<floorY-windowBottom;y2+=windowGap){
-    line(x+windowSide,y2,x+w-windowSide,y2);
-  }
+  neon(thinLine);
+  for(let wy=y+top;wy<floorY-bottom;wy+=windowGap) line(x+side,wy,x+w-side,wy);
 }
 
 function ground(){
+  let top=floorY+height*.05;
   noStroke();
   fill(15,17,31);
   rect(0,floorY,width,height-floorY);
   fill(22,24,42);
-  neon(courtLine);
+  neon(normalLine);
   beginShape();
-  vertex(courtLeftTop,floorY+courtOffsetY);
-  vertex(courtRightTop,floorY+courtOffsetY);
-  vertex(courtRightBottom,groundY);
-  vertex(courtLeftBottom,groundY);
+  vertex(width*.16,top);
+  vertex(width*.84,top);
+  vertex(width*.97,groundY);
+  vertex(width*.03,groundY);
   endShape(CLOSE);
   line(0,groundY,width,groundY);
-  noStroke();
-  fill(45,48,70);
-  if(opened) fill(c);
-  rect(exitX-exitW/2,groundY-exitH,exitW,exitH);
-  fill(15,17,31);
-  rect(exitX-doorInnerW/2,groundY-doorInnerH,doorInnerW,doorInnerH);
 }
 
 function neon(w){
@@ -209,290 +158,369 @@ function neon(w){
   strokeWeight(w);
 }
 
-function player(x,y){
-  fill(31,35,66);
-  neon(courtLine);
-  rect(x-pw/2,y-ph,pw,ph);
-  fill(c);
-  ellipse(x,y-ph-headR,headR*2);
-  drawArm(x,y);
+function picture(i,x,y,w,h){
+  if(images[i]){
+    image(images[i],x,y,w,h);
+  }else{
+    noStroke();
+    fill(c);
+    if(i==0 || i==2){
+      if(i==2) fill(235,90,110);
+      ellipse(x,y,w,h);
+    }else{
+      if(i==1) fill(80,200,130);
+      if(i==3) fill(35,45,70);
+      rect(x-w/2,y-h/2,w,h);
+    }
+  }
 }
 
-function displayObjects(){
-  if(!opened){
-    if(targetImg) image(targetImg,targetX,targetY,targetSize,targetSize);
-    else{
-      noStroke();
-      fill(100,220,130);
-      rect(targetX-targetSize/2,targetY-targetSize/2,targetSize,targetSize);
-    }
-  }else{
+function objects(){
+  for(let i=0;i<goalCount;i++){
+    if(on[i]) picture(1,gx[i],gy[i],goalSize,goalSize);
+  }
+  if(state!=2) picture(0,bx,by,br*2,br*2);
+  if(state==2){
+    noStroke();
+    fill(255,110,50,180);
+    ellipse(blastX,blastY,blastSize);
+  }
+  for(let i=0;i<enemyCount;i++){
+    picture(2,ex[i],ey[i],enemyR*2,enemyR*2);
     noFill();
-    neon(relayLine);
-    ellipse(targetX,targetY,targetSize);
-    line(targetX,targetY,exitX,groundY-exitH);
+    stroke(235,90,110);
+    strokeWeight(thinLine);
+    ellipse(ex[i],ey[i],enemyR*2);
   }
-  if(ballMode==0 || ballMode==2){
-    if(ballImg) image(ballImg,bx,by,br*2,br*2);
-    else{
-      noStroke();
-      fill(80,215,235);
-      ellipse(bx,by,br*2);
-    }
-  }
-  for(let i=0;i<obstacleCount;i++){
-    if(obstacleImg) image(obstacleImg,obstacleX[i],groundY-obstacleSize/2,obstacleSize,obstacleSize);
-    else{
-      noStroke();
-      fill(235,90,90);
-      ellipse(obstacleX[i],groundY-obstacleSize/2,obstacleSize);
-    }
-  }
+  fill(31,35,66);
+  neon(normalLine);
+  rect(paddle.x-paddle.w/2,paddle.y-paddle.h/2,paddle.w,paddle.h);
 }
 
 function displayText(){
   noStroke();
   fill(245);
-  textAlign(CENTER,CENTER);
-  textSize(nameSize);
-  text("NIGHT CITY - ENERGY RELAY",centerX,titleY);
-  textSize(stageTextSize);
-  text("STAGE "+stage+" / "+lastStage+"   "+stageName[stage-1],centerX,stageY);
-  let mission="떨어지는 파란 에너지를 받으세요";
-  if(opened) mission="출구가 열렸습니다! 오른쪽 문으로 이동하세요";
-  else if(ballMode==1) mission="A / D로 방향 조절 → 화면 클릭으로 중계기에 전달";
-  else if(ballMode==2) mission="에너지 이동 중 — 장애물을 피하세요";
-  text(mission,centerX,missionY);
-  textSize(controlsSize);
-  text("← → 이동   SPACE 점프   A / D 조준   클릭 발사   R 현재 단계 재시작",centerX,controlsY);
-  if(state!==0){
-    fill(15,17,31,235);
-    rect(panelX,panelY,panelW,panelH);
-    fill(c);
-    textSize(messageSize);
-    let message="ENERGY RELAY";
-    let guide="에너지를 받아 중계기를 켜고 출구로 이동하세요. ENTER 시작";
-    if(state==1){
-      message="STAGE CLEAR";
-      guide="N 키로 다음 스테이지";
-    }else if(state==2){
-      message="TRY AGAIN";
-      guide="에너지를 놓쳤거나 장애물에 닿았습니다. R 재시작";
-    }else if(state==3){
-      message="ALL CLEAR";
-      guide="도시의 중계기를 모두 연결했습니다. R 처음부터";
-    }
-    text(message,centerX,messageY);
-    textSize(guideSize);
-    fill(245);
-    text(guide,centerX,guideY);
-  }
-}
-
-function draw(){
-  if(state==0){
-    control();
-    moveTarget();
-    moveObstacles();
-    if(state==0) moveBall();
-    if(state==0 && opened && px>exitX-exitW/2 && py>=groundY){
-      if(stage<lastStage) state=1;
-      else state=3;
-      playEffect(clapSound);
+  textSize(titleSize);
+  text("NIGHT CITY - POWER MAZE",centerX,titleY);
+  textSize(smallSize);
+  text("STAGE "+stage+" / "+lastStage+"   충전 "+energy+" / "+energyNeed+"   최근 획득 +"+dice,centerX,infoY);
+  fill(45,48,70);
+  rect(barX,barY,barW,barH);
+  fill(c);
+  rect(barX,barY,barW*energy/energyNeed,barH);
+  fill(245);
+  text(notice,centerX,noticeY);
+  text("판: 마우스·방향키 / 클릭: 공 출발 / R: 현재 단계 재시작",centerX,helpY);
+  if(state==0) return;
+  fill(15,17,31,240);
+  rect(panelX,panelY,panelW,panelH);
+  fill(c);
+  textSize(bigSize);
+  text(messages[state+1],centerX,messageY);
+  if(state==1){
+    for(let i=0;i<cardCount;i++){
+      picture(3,cardX[i],cardY,cardW,cardH);
+      noFill();
+      neon(normalLine);
+      rect(cardX[i]-cardW/2,cardY-cardH/2,cardW,cardH);
+      noStroke();
+      fill(245);
+      text("?",cardX[i],cardY);
     }
   }
-  city();
-  ground();
-  displayObjects();
-  player(px,py);
-  displayText();
+  if(state==4) displayMaze();
+  noStroke();
+  fill(245);
+  textSize(smallSize);
+  text(guides[state+1],centerX,guideY);
 }
 
-function playEffect(sound){
-  if(sound){
-    sound.play();
-  }
+async function loadPicture(i){
+  images[i]=await loadImage(imageFiles[i]);
 }
 
-function dropBall(){
-  bx=random(ballMinX,ballMaxX);
-  by=ballStartY;
-  bvx=0;
-  bvy=ballStartSpeed;
-  ballMode=0;
+async function loadEffect(i){
+  sounds[i]=await loadSound(soundFiles[i]);
 }
 
 function resetStage(){
-  px=startX;
-  py=groundY;
-  speedX=0;
-  speedY=0;
-  angle=startAngle;
-  opened=false;
-  targetX=startTargetX;
-  targetY=startTargetY;
-  tx=random(10);
-  ty=random(10,20);
-  setTarget();
-  setObstacles();
-  dropBall();
-}
-
-function keyPressed(){
-  switch(key){
-    case "Enter":
-      if(state==-1){
-        resetStage();
-        state=0;
-        playEffect(catchSound);
-      }
-      break;
-    case " ":
-      if(state==0 && py>=groundY) speedY=jumpPower;
-      break;
-    case "n":
-    case "N":
-      if(state==1){
-        stage++;
-        resetStage();
-        state=0;
-      }
-      break;
-    case "r":
-    case "R":
-      if(state==3) stage=1;
-      resetStage();
-      state=0;
-      break;
+  paddle.x=centerX; paddle.y=maxY; paddle.vx=0; paddle.vy=0;
+  oldMouseX=mouseX; oldMouseY=mouseY;
+  goalCount=stage+1;
+  for(let i=0;i<goalCount;i++){
+    baseX[i]=width*(i+1)/(goalCount+1);
+    baseY[i]=height*(.28+(i%2)*.065);
+    gx[i]=baseX[i]; gy[i]=baseY[i]; on[i]=true;
+    gt[i]=random(noiseSeedRange); gv[i]=goalSpeed;
   }
+  enemyCount=stage-1;
+  enemySpeed=unit*(.00055+stage*.0001);
+  for(let i=0;i<enemyCount;i++){
+    ex[i]=width*(.78-i*.56);
+    ey[i]=patrolY;
+  }
+  energyNeed=requiredEnergy(stage);
+  energy=0; dice=0; notice="";
+  if(cardStage!=stage){
+    bombIndex=int(random(cardCount));
+    cardStage=stage;
+  }
+  startBall();
 }
 
 function mousePressed(){
-  if(mouseX>=0 && mouseX<width && mouseY>=0 && mouseY<height){
-    if(mouseY<themeLimitY){
-      sky=(sky+1)%bg.length;
-      c=color(colors[sky][0],colors[sky][1],colors[sky][2]);
-    }else if(state==0 && ballMode==1){
-      shootBall();
+  if(state==1){
+    for(let i=0;i<cardCount;i++){
+      if(mouseX>=cardX[i]-cardW/2 && mouseX<=cardX[i]+cardW/2 &&
+         mouseY>=cardY-cardH/2 && mouseY<=cardY+cardH/2){
+        chooseCard(i);
+        break;
+      }
+    }
+  }else if(state==0 && !ballActive && mouseX>=0 && mouseX<width &&
+           mouseY>=minY && mouseY<=groundY){
+    serve=true;
+  }else if(mouseX>=0 && mouseX<width && mouseY>=0 && mouseY<themeY){
+    sky=(sky+1)%bg.length;
+    c=color(colors[sky][0],colors[sky][1],colors[sky][2]);
+  }
+}
+
+function keyPressed(){
+  if(key==LEFT_ARROW || key==RIGHT_ARROW || key==UP_ARROW || key==DOWN_ARROW){
+    if(state==4) moveMaze();
+    return false;
+  }
+  switch(key){
+    case "Enter":
+      if(state==-1 || state==2){ resetStage(); state=0; }
+      return false;
+    case "r":
+    case "R":
+      if(state!=-1){
+        if(state==3){ stage=1; cardStage=0; }
+        resetStage();
+        state=0;
+      }
+      return false;
+  }
+}
+
+function mouseControl(){
+  if(mouseX>=0 && mouseX<=width && mouseY>=0 && mouseY<=height){
+    if(mouseIsPressed || mouseX!=oldMouseX || mouseY!=oldMouseY){
+      paddle.x=mouseX; paddle.y=mouseY;
+      paddle.vx=0; paddle.vy=0;
+    }
+  }
+  oldMouseX=mouseX; oldMouseY=mouseY;
+}
+
+function restoreGoals(){
+  let now=millis();
+  for(let i=0;i<goalCount;i++){
+    if(!on[i] && now-goneTime[i]>=restoreTime){
+      on[i]=true;
+      gx[i]=baseX[i]+random(-goalRange,goalRange);
     }
   }
 }
 
-function control(){
-  movePlayer();
-  aim();
-  speedY+=gravity;
-  py+=speedY;
-  if(py>=groundY){
-    py=groundY;
-    speedY=0;
+function driftGoals(){
+  for(let i=0;i<goalCount;i++){
+    gt[i]+=noiseRate;
+    gy[i]=baseY[i]+(noise(gt[i])-.5)*noiseRange;
   }
+}
+
+function inertia(){
+  paddle.vx=constrain(paddle.vx*friction,-speed,speed);
+  paddle.vy=constrain(paddle.vy*friction,-speed,speed);
+  paddle.x=constrain(paddle.x+paddle.vx,paddle.w/2,width-paddle.w/2);
+  paddle.y=constrain(paddle.y+paddle.vy,minY,maxY);
+}
+
+function reflectAngle(){
+  let offset=constrain((bx-paddle.x)/(paddle.w/2),-1,1);
+  let angle=-PI/2+offset*angleLimit;
+  vx=bounceSpeed*cos(angle);
+  vy=bounceSpeed*sin(angle);
+}
+
+function patrolBomb(){
+  if(enemyCount<2) return;
+  ex[1]-=patrolSpeed;
+  if(ex[1]+enemyR<0) ex[1]=width+enemyR;
+}
+
+function startBall(){
+  bx=paddle.x; by=paddle.y-(paddle.h+normalLine)/2-br;
+  vx=0; vy=0;
+  ballActive=false; serve=false;
 }
 
 function moveBall(){
-  if(ballMode==0){
-    bvy+=ballGravity;
-    by+=bvy;
-    if(px+pw/2>bx-br && px-pw/2<bx+br &&
-       py>by-br && py-ph-headR*2<by+br){
-      ballMode=1;
-      playEffect(catchSound);
-    }else if(by+br>=groundY){
+  if(!ballActive){
+    bx=paddle.x;
+    by=paddle.y-(paddle.h+normalLine)/2-br;
+    return;
+  }
+  oldBallY=by;
+  vy+=gravity;
+  setBounceSpeed(false);
+  bx+=vx;
+  by+=vy;
+  if(bx<br || bx>width-br){
+    bx=constrain(bx,br,width-br);
+    vx=-vx;
+    setBounceSpeed(true);
+  }
+  if(by<br){
+    by=br;
+    vy=-vy;
+    setBounceSpeed(true);
+  }
+  if(by-br>groundY) startBall();
+}
+
+function setBounceSpeed(force){
+  let velocity=dist(0,0,vx,vy);
+  if(velocity>0 && (force || velocity>bounceSpeed)){
+    vx=vx/velocity*bounceSpeed;
+    vy=vy/velocity*bounceSpeed;
+  }
+}
+
+function bounceBall(){
+  let top=paddle.y-(paddle.h+normalLine)/2;
+  let half=(paddle.w+normalLine)/2;
+  let crossing=oldBallY+br<=top && by+br>=top;
+  let touching=by+br>=top && by-br<=paddle.y+(paddle.h+normalLine)/2;
+  if(vy>0 && bx+br>=paddle.x-half && bx-br<=paddle.x+half && (crossing || touching)){
+    by=top-br;
+    reflectAngle();
+  }
+}
+
+function chaseBomb(){
+  if(enemyCount<1) return;
+  let d=dist(ex[0],ey[0],bx,by);
+  if(d>0){
+    ex[0]+=(bx-ex[0])/d*enemySpeed;
+    ey[0]+=(by-ey[0])/d*enemySpeed;
+  }
+}
+
+function charge(){
+  dice=int(random(diceSides))+1;
+  energy+=dice;
+  effect=0;
+  notice="과녁 명중! +"+dice;
+  if(energy>=energyNeed){ energy=energyNeed; state=1; }
+}
+
+function chooseCard(i){
+  if(i==bombIndex){
+    resetStage();
+    state=0;
+    notice="폭탄 카드! 다시 충전하세요 · 카드 위치 유지";
+    effect=1;
+  }else{
+    routeX=0; routeY=0;
+    state=4;
+    effect=0;
+  }
+}
+
+function moveTargets(){
+  for(let i=0;i<goalCount;i++){
+    gx[i]+=gv[i];
+    if(gx[i]<baseX[i]-goalRange || gx[i]>baseX[i]+goalRange){
+      gx[i]=constrain(gx[i],baseX[i]-goalRange,baseX[i]+goalRange);
+      gv[i]=-gv[i];
+    }
+  }
+}
+
+function serveBall(){
+  if(serve){
+    serve=false;
+    if(!ballActive){
+      bx=paddle.x;
+      by=paddle.y-(paddle.h+normalLine)/2-br;
+      vx=ballSpeed;
+      if(random(1)<.5) vx=-ballSpeed;
+      vy=launchVY;
+      ballActive=true;
+    }
+  }
+}
+
+function keyboardControl(){
+  if(keyIsDown(LEFT_ARROW)) paddle.vx-=accel;
+  if(keyIsDown(RIGHT_ARROW)) paddle.vx+=accel;
+  if(keyIsDown(UP_ARROW)) paddle.vy-=accel;
+  if(keyIsDown(DOWN_ARROW)) paddle.vy+=accel;
+}
+
+function checkBomb(){
+  for(let i=0;i<enemyCount;i++){
+    if(dist(bx,by,ex[i],ey[i])<br+enemyR){
+      blastX=bx; blastY=by;
+      ballActive=false;
       state=2;
-      playEffect(burstSound);
-    }
-  }else if(ballMode==2){
-    moveShot();
-  }
-}
-
-function setTarget(){
-  targetSize=baseTargetSize-stage*targetSizeStep;
-  rate=rateStep*stage;
-}
-
-function moveTarget(){
-  if(stage>1 && !opened){
-    targetX=relayMinX+(sin(tx)+1)*relayRangeX/2;
-    targetY=relayMinY+(cos(ty)+1)*relayRangeY/2;
-    tx+=rate;
-    ty+=rate*.8;
-  }
-}
-
-function movePlayer(){
-  if(keyIsDown(LEFT_ARROW)) speedX-=accel;
-  if(keyIsDown(RIGHT_ARROW)) speedX+=accel;
-  speedX*=friction;
-  speedX=constrain(speedX,-maxSpeed,maxSpeed);
-  px=constrain(px+speedX,pw,width-pw);
-}
-
-function aim(){
-  if(keyIsDown("a") || keyIsDown("A")) angle-=angleStep;
-  if(keyIsDown("d") || keyIsDown("D")) angle+=angleStep;
-  angle=constrain(angle,-PI,0);
-}
-
-function drawArm(x,y){
-  let armX=x+armLength*cos(angle);
-  let armY=y-armOffset+armLength*sin(angle);
-  neon(armLine);
-  line(x,y-armOffset,armX,armY);
-  if(ballMode==1){
-    if(ballImg) image(ballImg,armX,armY,br*2,br*2);
-    else{
-      noStroke();
-      fill(80,215,235);
-      ellipse(armX,armY,br*2);
+      effect=1;
+      return;
     }
   }
 }
 
-function shootBall(){
-  bx=px+armLength*cos(angle);
-  by=py-armOffset+armLength*sin(angle);
-  bvx=shotSpeed*cos(angle);
-  bvy=shotSpeed*sin(angle);
-  ballMode=2;
-}
-
-function moveShot(){
-  bx+=bvx;
-  by+=bvy;
-  if(bx+br>targetX-targetSize/2 && bx-br<targetX+targetSize/2 &&
-     by+br>targetY-targetSize/2 && by-br<targetY+targetSize/2){
-    opened=true;
-    ballMode=3;
-  }else if(bx<-br || bx>width+br || by<-br || by>groundY){
-    dropBall();
-    if(stage==1){
-      targetX=random(randomTargetMinX,randomTargetMaxX);
-      targetY=random(randomTargetMinY,randomTargetMaxY);
+function checkTargets(){
+  for(let i=0;i<goalCount;i++){
+    if(on[i] && bx+br>=gx[i]-goalSize/2 && bx-br<=gx[i]+goalSize/2 &&
+       by+br>=gy[i]-goalSize/2 && by-br<=gy[i]+goalSize/2){
+      on[i]=false;
+      goneTime[i]=millis();
+      vy=-vy;
+      charge();
+      break;
     }
   }
 }
 
-function setObstacles(){
-  obstacleCount=stage-1;
-  obstacleSpeed=obstacleBaseSpeed+stage*obstacleSpeedStep;
-  for(let i=0;i<obstacleCount;i++){
-    obstacleX[i]=obstacleStartX+i*obstacleGap;
+function displayMaze(){
+  for(let y=0;y<circuit.length;y++){
+    for(let x=0;x<circuit[y].length;x++){
+      fill(15,25,40);
+      if(circuit[y][x]==1) fill(70,85,110);
+      if(x==circuit[0].length-1 && y==circuit.length-1) fill(255,210,80);
+      stroke(80);
+      rect(gridX+x*gridSize,gridY+y*gridSize,gridSize,gridSize);
+    }
   }
+  noStroke();
+  fill(c);
+  ellipse(gridX+(routeX+.5)*gridSize,gridY+(routeY+.5)*gridSize,gridSize*.5);
 }
 
-function moveObstacles(){
-  for(let i=0;i<obstacleCount;i++){
-    obstacleX[i]-=obstacleSpeed;
-    if(obstacleX[i]<-obstacleSize){
-      obstacleX[i]=width+random(obstacleMinGap,obstacleMaxGap);
+function moveMaze(){
+  let x=routeX,y=routeY;
+  if(key==LEFT_ARROW) x--;
+  if(key==RIGHT_ARROW) x++;
+  if(key==UP_ARROW) y--;
+  if(key==DOWN_ARROW) y++;
+  x=constrain(x,0,circuit[0].length-1);
+  y=constrain(y,0,circuit.length-1);
+  if(circuit[y][x]==0){ routeX=x; routeY=y; }
+  if(routeX==circuit[0].length-1 && routeY==circuit.length-1){
+    if(stage<lastStage){
+      stage++;
+      resetStage();
+      state=0;
+      notice="미로 통과! STAGE "+stage;
+    }else{
+      state=3;
     }
-    if(state==0 &&
-       px+pw/2>obstacleX[i]-obstacleSize/2 &&
-       px-pw/2<obstacleX[i]+obstacleSize/2 &&
-       py>groundY-obstacleSize && py-ph-headR*2<groundY){
-      state=2;
-      playEffect(burstSound);
-    }
+    effect=2;
   }
 }
