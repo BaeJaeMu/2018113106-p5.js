@@ -12,7 +12,8 @@ let ww=[.079,.083,.079,.083,.083,.083,.079,.083,.071];
 let hh=[.218,.273,.236,.264,.373,.255,.227,.282,.209];
 let cloudX=[.136,.193],cloudW=[.079,.1],cloudH=[.045,.062];
 let floorY,groundY,centerX,thinLine,normalLine,windowGap;
-let paddle,accel,speed,friction=.8,minY,maxY,oldMouseX,oldMouseY;
+let paddleX,paddleY,paddleW,paddleH,paddleVX,paddleVY;
+let accel,speed,friction=.8,minY,maxY,oldMouseX,oldMouseY;
 let bx,by,br,vx,vy,oldBallY,gravity,ballSpeed;
 let ballRate=.45,reboundBoost=1.1,bounceSpeed;
 let launchVY,angleLimit,ballActive=false,serve=false;
@@ -40,9 +41,11 @@ function setup(){
   floorY=height*.62; groundY=height*.92; centerX=width/2;
   thinLine=unit*.0015; normalLine=unit*.003; windowGap=height*.04;
   minY=height*.22; maxY=height*.87;
-  paddle={x:centerX,y:maxY,w:width*.19,h:height*.025,vx:0,vy:0};
+  paddleX=centerX; paddleY=maxY;
+  paddleW=width*.19; paddleH=height*.025;
+  paddleVX=0; paddleVY=0;
   accel=width*.0025; speed=width*.01;
-  br=unit*.018; gravity=height*.00055*ballRate*ballRate;
+  br=unit*.018; gravity=height*.00066*ballRate*ballRate;
   ballSpeed=width*.004*ballRate; launchVY=-height*.025*ballRate;
   bounceSpeed=height*.03*ballRate*reboundBoost;
   blastSize=unit*.14;
@@ -194,7 +197,7 @@ function objects(){
   }
   fill(31,35,66);
   neon(normalLine);
-  rect(paddle.x-paddle.w/2,paddle.y-paddle.h/2,paddle.w,paddle.h);
+  rect(paddleX-paddleW/2,paddleY-paddleH/2,paddleW,paddleH);
 }
 
 function displayText(){
@@ -244,7 +247,7 @@ async function loadEffect(i){
 }
 
 function resetStage(){
-  paddle.x=centerX; paddle.y=maxY; paddle.vx=0; paddle.vy=0;
+  paddleX=centerX; paddleY=maxY; paddleVX=0; paddleVY=0;
   oldMouseX=mouseX; oldMouseY=mouseY;
   goalCount=stage+1;
   for(let i=0;i<goalCount;i++){
@@ -309,8 +312,8 @@ function keyPressed(){
 function mouseControl(){
   if(mouseX>=0 && mouseX<=width && mouseY>=0 && mouseY<=height){
     if(mouseIsPressed || mouseX!=oldMouseX || mouseY!=oldMouseY){
-      paddle.x=mouseX; paddle.y=mouseY;
-      paddle.vx=0; paddle.vy=0;
+      paddleX=mouseX; paddleY=mouseY;
+      paddleVX=0; paddleVY=0;
     }
   }
   oldMouseX=mouseX; oldMouseY=mouseY;
@@ -334,14 +337,14 @@ function driftGoals(){
 }
 
 function inertia(){
-  paddle.vx=constrain(paddle.vx*friction,-speed,speed);
-  paddle.vy=constrain(paddle.vy*friction,-speed,speed);
-  paddle.x=constrain(paddle.x+paddle.vx,paddle.w/2,width-paddle.w/2);
-  paddle.y=constrain(paddle.y+paddle.vy,minY,maxY);
+  paddleVX=constrain(paddleVX*friction,-speed,speed);
+  paddleVY=constrain(paddleVY*friction,-speed,speed);
+  paddleX=constrain(paddleX+paddleVX,paddleW/2,width-paddleW/2);
+  paddleY=constrain(paddleY+paddleVY,minY,maxY);
 }
 
 function reflectAngle(){
-  let offset=constrain((bx-paddle.x)/(paddle.w/2),-1,1);
+  let offset=constrain((bx-paddleX)/(paddleW/2),-1,1);
   let angle=-PI/2+offset*angleLimit;
   vx=bounceSpeed*cos(angle);
   vy=bounceSpeed*sin(angle);
@@ -354,15 +357,15 @@ function patrolBomb(){
 }
 
 function startBall(){
-  bx=paddle.x; by=paddle.y-(paddle.h+normalLine)/2-br;
+  bx=paddleX; by=paddleY-(paddleH+normalLine)/2-br;
   vx=0; vy=0;
   ballActive=false; serve=false;
 }
 
 function moveBall(){
   if(!ballActive){
-    bx=paddle.x;
-    by=paddle.y-(paddle.h+normalLine)/2-br;
+    bx=paddleX;
+    by=paddleY-(paddleH+normalLine)/2-br;
     return;
   }
   oldBallY=by;
@@ -392,11 +395,11 @@ function setBounceSpeed(force){
 }
 
 function bounceBall(){
-  let top=paddle.y-(paddle.h+normalLine)/2;
-  let half=(paddle.w+normalLine)/2;
+  let top=paddleY-(paddleH+normalLine)/2;
+  let half=(paddleW+normalLine)/2;
   let crossing=oldBallY+br<=top && by+br>=top;
-  let touching=by+br>=top && by-br<=paddle.y+(paddle.h+normalLine)/2;
-  if(vy>0 && bx+br>=paddle.x-half && bx-br<=paddle.x+half && (crossing || touching)){
+  let touching=by+br>=top && by-br<=paddleY+(paddleH+normalLine)/2;
+  if(vy>0 && bx+br>=paddleX-half && bx-br<=paddleX+half && (crossing || touching)){
     by=top-br;
     reflectAngle();
   }
@@ -446,8 +449,8 @@ function serveBall(){
   if(serve){
     serve=false;
     if(!ballActive){
-      bx=paddle.x;
-      by=paddle.y-(paddle.h+normalLine)/2-br;
+      bx=paddleX;
+      by=paddleY-(paddleH+normalLine)/2-br;
       vx=ballSpeed;
       if(random(1)<.5) vx=-ballSpeed;
       vy=launchVY;
@@ -457,10 +460,10 @@ function serveBall(){
 }
 
 function keyboardControl(){
-  if(keyIsDown(LEFT_ARROW)) paddle.vx-=accel;
-  if(keyIsDown(RIGHT_ARROW)) paddle.vx+=accel;
-  if(keyIsDown(UP_ARROW)) paddle.vy-=accel;
-  if(keyIsDown(DOWN_ARROW)) paddle.vy+=accel;
+  if(keyIsDown(LEFT_ARROW)) paddleVX-=accel;
+  if(keyIsDown(RIGHT_ARROW)) paddleVX+=accel;
+  if(keyIsDown(UP_ARROW)) paddleVY-=accel;
+  if(keyIsDown(DOWN_ARROW)) paddleVY+=accel;
 }
 
 function checkBomb(){
