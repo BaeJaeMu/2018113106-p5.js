@@ -16,6 +16,7 @@ let paddleX,paddleY,paddleW,paddleH,paddleVX,paddleVY;
 let accel,speed,friction=.8,minY,maxY,oldMouseX,oldMouseY;
 let bx,by,br,vx,vy,oldBallY,gravity,ballSpeed;
 let ballRate=.45,reboundBoost=1.1,bounceSpeed;
+let ballAngle=0,spinRate=.35;
 let launchVY,angleLimit,ballActive=false,serve=false;
 let blastX,blastY,blastSize;
 let gx=[],gy=[],baseX=[],baseY=[],on=[],goneTime=[],gt=[],gv=[];
@@ -182,7 +183,7 @@ function objects(){
   for(let i=0;i<goalCount;i++){
     if(on[i]) picture(1,gx[i],gy[i],goalSize,goalSize);
   }
-  if(state!=2) picture(0,bx,by,br*2,br*2);
+  if(state!=2) drawBall(bx,by,br,ballAngle);
   if(state==2){
     noStroke();
     fill(255,110,50,180);
@@ -273,13 +274,8 @@ function resetStage(){
 
 function mousePressed(){
   if(state==1){
-    for(let i=0;i<cardCount;i++){
-      if(mouseX>=cardX[i]-cardW/2 && mouseX<=cardX[i]+cardW/2 &&
-         mouseY>=cardY-cardH/2 && mouseY<=cardY+cardH/2){
-        chooseCard(i);
-        break;
-      }
-    }
+    let selected=findCard(mouseX,mouseY);
+    if(selected>=0) chooseCard(selected);
   }else if(state==0 && !ballActive && mouseX>=0 && mouseX<width &&
            mouseY>=minY && mouseY<=groundY){
     serve=true;
@@ -343,11 +339,20 @@ function inertia(){
   paddleY=constrain(paddleY+paddleVY,minY,maxY);
 }
 
-function reflectAngle(){
-  let offset=constrain((bx-paddleX)/(paddleW/2),-1,1);
-  let angle=-PI/2+offset*angleLimit;
-  vx=bounceSpeed*cos(angle);
-  vy=bounceSpeed*sin(angle);
+function drawBall(x,y,r,angle){
+  push();
+  translate(x,y);
+  rotate(angle);
+  picture(0,0,0,r*2,r*2);
+  stroke(245);
+  strokeWeight(normalLine);
+  line(-r*.6,0,r*.6,0);
+  pop();
+}
+
+function reflectAngle(x,center,w){
+  let offset=constrain((x-center)/(w/2),-1,1);
+  return -PI/2+offset*angleLimit;
 }
 
 function patrolBomb(){
@@ -359,6 +364,7 @@ function patrolBomb(){
 function startBall(){
   bx=paddleX; by=paddleY-(paddleH+normalLine)/2-br;
   vx=0; vy=0;
+  ballAngle=0;
   ballActive=false; serve=false;
 }
 
@@ -373,6 +379,7 @@ function moveBall(){
   setBounceSpeed(false);
   bx+=vx;
   by+=vy;
+  ballAngle=(ballAngle+vx/br*spinRate)%(PI*2);
   if(bx<br || bx>width-br){
     bx=constrain(bx,br,width-br);
     vx=-vx;
@@ -401,7 +408,9 @@ function bounceBall(){
   let touching=by+br>=top && by-br<=paddleY+(paddleH+normalLine)/2;
   if(vy>0 && bx+br>=paddleX-half && bx-br<=paddleX+half && (crossing || touching)){
     by=top-br;
-    reflectAngle();
+    let angle=reflectAngle(bx,paddleX,paddleW);
+    vx=bounceSpeed*cos(angle);
+    vy=bounceSpeed*sin(angle);
   }
 }
 
@@ -414,12 +423,26 @@ function chaseBomb(){
   }
 }
 
-function charge(){
-  dice=int(random(diceSides))+1;
+function rollDice(sides){
+  return int(random(sides))+1;
+}
+
+function charge(amount){
+  dice=amount;
   energy+=dice;
   effect=0;
   notice="과녁 명중! +"+dice;
   if(energy>=energyNeed){ energy=energyNeed; state=1; }
+}
+
+function findCard(x,y){
+  for(let i=0;i<cardCount;i++){
+    if(x>=cardX[i]-cardW/2 && x<=cardX[i]+cardW/2 &&
+       y>=cardY-cardH/2 && y<=cardY+cardH/2){
+      return i;
+    }
+  }
+  return -1;
 }
 
 function chooseCard(i){
@@ -485,7 +508,7 @@ function checkTargets(){
       on[i]=false;
       goneTime[i]=millis();
       vy=-vy;
-      charge();
+      charge(rollDice(diceSides));
       break;
     }
   }
