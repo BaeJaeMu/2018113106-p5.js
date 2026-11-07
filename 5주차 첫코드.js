@@ -14,12 +14,12 @@ let cloudX=[.136,.193],cloudW=[.079,.1],cloudH=[.045,.062];
 let floorY,groundY,centerX,thinLine,normalLine,windowGap;
 let paddleX,paddleY,paddleW,paddleH,paddleVX,paddleVY;
 let accel,speed,friction=.8,minY,maxY,oldMouseX,oldMouseY;
-let bx,by,br,vx,vy,oldBallY,gravity,ballSpeed;
+let bx,by,br,vx,vy,gravity,ballSpeed;
 let ballRate=.45,reboundBoost=1.1,bounceSpeed;
 let ballAngle=0,spinRate=.35;
 let launchVY,angleLimit,ballActive=false,serve=false;
 let blastX,blastY,blastSize;
-let gx=[],gy=[],baseX=[],baseY=[],on=[],goneTime=[],gt=[],gv=[];
+let targets=[];
 let goalCount,goalSize,goalRange,goalSpeed,noiseRange,noiseRate=.008;
 let restoreTime=1800,noiseSeedRange=100;
 let ex=[],ey=[],enemyCount,enemyR,enemySpeed,patrolSpeed,patrolY;
@@ -75,9 +75,7 @@ function draw(){
     mouseControl();
     keyboardControl();
     inertia();
-    restoreGoals();
-    driftGoals();
-    moveTargets();
+    for(let i=0;i<targets.length;i++) targets[i].update();
     serveBall();
     moveBall();
     if(ballActive){
@@ -85,7 +83,14 @@ function draw(){
       chaseBomb();
       patrolBomb();
       checkBomb();
-      if(state==0) checkTargets();
+      if(state==0){
+        for(let i=0;i<targets.length;i++){
+          if(targets[i].active){
+            targets[i].check(bx,by,br);
+            if(!targets[i].active) break;
+          }
+        }
+      }
     }
   }
   city();
@@ -99,7 +104,7 @@ function draw(){
 }
 
 function city(){
-  let b=skyColor();
+  let b=bg[sky];
   background(b[0],b[1],b[2]);
   let mx=width*.807,my=height*.23,moonSize=unit*.25;
   noStroke();
@@ -119,14 +124,6 @@ function city(){
     arc(cloudX[i]*width,height*.25,cloudW[i]*width,cloudH[i]*height,PI,PI*2);
   }
   for(let i=0;i<xx.length;i++) building(i);
-}
-
-function skyColor(){
-  return bg[sky];
-}
-
-function requiredEnergy(level){
-  return level*energyStep+energyBase;
 }
 
 function building(i){
@@ -180,9 +177,7 @@ function picture(i,x,y,w,h){
 }
 
 function objects(){
-  for(let i=0;i<goalCount;i++){
-    if(on[i]) picture(1,gx[i],gy[i],goalSize,goalSize);
-  }
+  for(let i=0;i<targets.length;i++) targets[i].display();
   if(state!=2) drawBall(bx,by,br,ballAngle);
   if(state==2){
     noStroke();
@@ -251,11 +246,11 @@ function resetStage(){
   paddleX=centerX; paddleY=maxY; paddleVX=0; paddleVY=0;
   oldMouseX=mouseX; oldMouseY=mouseY;
   goalCount=stage+1;
+  targets=[];
   for(let i=0;i<goalCount;i++){
-    baseX[i]=width*(i+1)/(goalCount+1);
-    baseY[i]=height*(.28+(i%2)*.065);
-    gx[i]=baseX[i]; gy[i]=baseY[i]; on[i]=true;
-    gt[i]=random(noiseSeedRange); gv[i]=goalSpeed;
+    let x=width*(i+1)/(goalCount+1);
+    let y=height*(.28+(i%2)*.065);
+    targets[i]=new Target(x,y,goalSize,goalSpeed);
   }
   enemyCount=stage-1;
   enemySpeed=unit*(.00055+stage*.0001);
@@ -263,7 +258,7 @@ function resetStage(){
     ex[i]=width*(.78-i*.56);
     ey[i]=patrolY;
   }
-  energyNeed=requiredEnergy(stage);
+  energyNeed=stage*energyStep+energyBase;
   energy=0; dice=0; notice="";
   if(cardStage!=stage){
     bombIndex=int(random(cardCount));
@@ -315,23 +310,6 @@ function mouseControl(){
   oldMouseX=mouseX; oldMouseY=mouseY;
 }
 
-function restoreGoals(){
-  let now=millis();
-  for(let i=0;i<goalCount;i++){
-    if(!on[i] && now-goneTime[i]>=restoreTime){
-      on[i]=true;
-      gx[i]=baseX[i]+random(-goalRange,goalRange);
-    }
-  }
-}
-
-function driftGoals(){
-  for(let i=0;i<goalCount;i++){
-    gt[i]+=noiseRate;
-    gy[i]=baseY[i]+(noise(gt[i])-.5)*noiseRange;
-  }
-}
-
 function inertia(){
   paddleVX=constrain(paddleVX*friction,-speed,speed);
   paddleVY=constrain(paddleVY*friction,-speed,speed);
@@ -374,7 +352,6 @@ function moveBall(){
     by=paddleY-(paddleH+normalLine)/2-br;
     return;
   }
-  oldBallY=by;
   vy+=gravity;
   setBounceSpeed(false);
   bx+=vx;
@@ -404,9 +381,8 @@ function setBounceSpeed(force){
 function bounceBall(){
   let top=paddleY-(paddleH+normalLine)/2;
   let half=(paddleW+normalLine)/2;
-  let crossing=oldBallY+br<=top && by+br>=top;
   let touching=by+br>=top && by-br<=paddleY+(paddleH+normalLine)/2;
-  if(vy>0 && bx+br>=paddleX-half && bx-br<=paddleX+half && (crossing || touching)){
+  if(vy>0 && bx+br>=paddleX-half && bx-br<=paddleX+half && touching){
     by=top-br;
     let angle=reflectAngle(bx,paddleX,paddleW);
     vx=bounceSpeed*cos(angle);
@@ -421,10 +397,6 @@ function chaseBomb(){
     ex[0]+=(bx-ex[0])/d*enemySpeed;
     ey[0]+=(by-ey[0])/d*enemySpeed;
   }
-}
-
-function rollDice(sides){
-  return int(random(sides))+1;
 }
 
 function charge(amount){
@@ -458,16 +430,6 @@ function chooseCard(i){
   }
 }
 
-function moveTargets(){
-  for(let i=0;i<goalCount;i++){
-    gx[i]+=gv[i];
-    if(gx[i]<baseX[i]-goalRange || gx[i]>baseX[i]+goalRange){
-      gx[i]=constrain(gx[i],baseX[i]-goalRange,baseX[i]+goalRange);
-      gv[i]=-gv[i];
-    }
-  }
-}
-
 function serveBall(){
   if(serve){
     serve=false;
@@ -497,19 +459,6 @@ function checkBomb(){
       state=2;
       effect=1;
       return;
-    }
-  }
-}
-
-function checkTargets(){
-  for(let i=0;i<goalCount;i++){
-    if(on[i] && bx+br>=gx[i]-goalSize/2 && bx-br<=gx[i]+goalSize/2 &&
-       by+br>=gy[i]-goalSize/2 && by-br<=gy[i]+goalSize/2){
-      on[i]=false;
-      goneTime[i]=millis();
-      vy=-vy;
-      charge(rollDice(diceSides));
-      break;
     }
   }
 }
@@ -548,5 +497,47 @@ function moveMaze(){
       state=3;
     }
     effect=2;
+  }
+}
+
+class Target {
+  constructor(x,y,size,speed){
+    this.x=x;
+    this.y=y;
+    this.baseX=x;
+    this.baseY=y;
+    this.size=size;
+    this.speed=speed;
+    this.active=true;
+    this.goneTime=0;
+    this.noiseTime=random(noiseSeedRange);
+  }
+
+  display(){
+    if(this.active) picture(1,this.x,this.y,this.size,this.size);
+  }
+
+  update(){
+    if(!this.active && millis()-this.goneTime>=restoreTime){
+      this.active=true;
+      this.x=this.baseX+random(-goalRange,goalRange);
+    }
+    this.noiseTime+=noiseRate;
+    this.y=this.baseY+(noise(this.noiseTime)-.5)*noiseRange;
+    this.x+=this.speed;
+    if(this.x<this.baseX-goalRange || this.x>this.baseX+goalRange){
+      this.x=constrain(this.x,this.baseX-goalRange,this.baseX+goalRange);
+      this.speed=-this.speed;
+    }
+  }
+
+  check(x,y,r){
+    if(this.active && x+r>=this.x-this.size/2 && x-r<=this.x+this.size/2 &&
+       y+r>=this.y-this.size/2 && y-r<=this.y+this.size/2){
+      this.active=false;
+      this.goneTime=millis();
+      vy=-vy;
+      charge(int(random(diceSides))+1);
+    }
   }
 }
