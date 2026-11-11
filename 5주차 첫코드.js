@@ -510,12 +510,8 @@ class Game {
     this.cards=new Cards();
     this.maze=new Maze();
 
-    this.target1=null;
-    this.target2=null;
-    this.target3=null;
-    this.target4=null;
-    this.bomb1=null;
-    this.bomb2=null;
+    this.targets=[];
+    this.bombs=[];
 
     this.titleY=height*.045;
     this.infoY=height*.1;
@@ -542,25 +538,18 @@ class Game {
     this.player.reset();
     this.ball.reset();
 
+    this.targets=[];
     let count=this.stage+1;
-    let gap=width/(count+1);
-    let upperY=height*.28,lowerY=height*(.28+.065);
 
-    this.target1=new Target(gap,upperY);
-    this.target2=new Target(gap*2,lowerY);
-    this.target3=null;
-    this.target4=null;
-    this.bomb1=null;
-    this.bomb2=null;
-
-    if(this.stage>=2){
-      this.target3=new Target(gap*3,upperY);
-      this.bomb1=new Bomb(0,this.stage);
+    for(let i=0;i<count;i++){
+      let x=width*(i+1)/(count+1),y=height*(.28+(i%2)*.065);
+      this.targets[i]=new Target(x,y);
     }
 
-    if(this.stage>=3){
-      this.target4=new Target(gap*4,lowerY);
-      this.bomb2=new Bomb(1,this.stage);
+    this.bombs=[];
+
+    for(let i=0;i<this.stage-1;i++){
+      this.bombs[i]=new Bomb(i,this.stage);
     }
 
     this.energyNeed=this.stage*this.energyStep+this.energyBase;
@@ -572,63 +561,47 @@ class Game {
 
   update(){
     if(this.state!=0) return;
+
     this.player.update();
 
-    this.target1.update();
-    this.target2.update();
-    if(this.target3) this.target3.update();
-    if(this.target4) this.target4.update();
+    for(let i=0;i<this.targets.length;i++){
+      this.targets[i].update();
+    }
 
     this.ball.update();
     if(!this.ball.active) return;
+
     this.ball.bounce(this.player);
 
-    if(this.bomb1) this.bomb1.update();
-    if(this.bomb2) this.bomb2.update();
+    for(let i=0;i<this.bombs.length;i++){
+      this.bombs[i].update();
+    }
 
-    if(this.bomb1){
-      this.bomb1.check(this.ball.x,this.ball.y,this.ball.r);
+    for(let i=0;i<this.bombs.length;i++){
+      this.bombs[i].check(this.ball.x,this.ball.y,this.ball.r);
       if(this.state==2) return;
     }
 
-    if(this.bomb2){
-      this.bomb2.check(this.ball.x,this.ball.y,this.ball.r);
-      if(this.state==2) return;
-    }
-
-    if(this.target1.active){
-      this.target1.check(this.ball.x,this.ball.y,this.ball.r);
-      if(!this.target1.active) return;
-    }
-
-    if(this.target2.active){
-      this.target2.check(this.ball.x,this.ball.y,this.ball.r);
-      if(!this.target2.active) return;
-    }
-
-    if(this.target3 && this.target3.active){
-      this.target3.check(this.ball.x,this.ball.y,this.ball.r);
-      if(!this.target3.active) return;
-    }
-
-    if(this.target4 && this.target4.active){
-      this.target4.check(this.ball.x,this.ball.y,this.ball.r);
-      if(!this.target4.active) return;
+    for(let i=0;i<this.targets.length;i++){
+      if(this.targets[i].active){
+        this.targets[i].check(this.ball.x,this.ball.y,this.ball.r);
+        if(!this.targets[i].active) break;
+      }
     }
   }
 
   display(){
     this.background.display();
 
-    this.target1.display();
-    this.target2.display();
-    if(this.target3) this.target3.display();
-    if(this.target4) this.target4.display();
+    for(let i=0;i<this.targets.length;i++){
+      this.targets[i].display();
+    }
 
     this.ball.display();
 
-    if(this.bomb1) this.bomb1.display();
-    if(this.bomb2) this.bomb2.display();
+    for(let i=0;i<this.bombs.length;i++){
+      this.bombs[i].display();
+    }
 
     this.player.display();
     this.displayText();
