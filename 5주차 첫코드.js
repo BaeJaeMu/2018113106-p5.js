@@ -1,6 +1,6 @@
+
 let canvasW=800,canvasH=600,unit,game;
-let sounds=[];
-let soundFiles=["catch.mp3","burst.mp3","claps.mp3"];
+let sounds=[],soundFiles=["catch.mp3","burst.mp3","claps.mp3"];
 
 function setup(){
   createCanvas(canvasW,canvasH);
@@ -9,7 +9,7 @@ function setup(){
   unit=width;
   if(height<unit) unit=height;
   game=new Game();
-  game.resetStage();
+  game.reset();
   for(let i=0;i<soundFiles.length;i++) loadEffect(i);
 }
 
@@ -34,119 +34,108 @@ async function loadEffect(i){
 class Background {
   constructor(){
     this.sky=0;
-    this.bg=[[67,68,145],[78,55,143],[43,38,100]];
     this.colors=[[80,215,235],[180,120,230],[235,120,190]];
+    this.bg=[[67,68,145],[78,55,143],[43,38,100]];
     this.c=color(80,215,235);
-    this.sx=[.05,.107,.164,.229,.3,.364,.65,.714,.879,.943];
-    this.sy=[.1,.164,.082,.142,.191,.113,.105,.167,.136,.091];
     this.xx=[.029,.121,.214,.314,.459,.6,.7,.8,.9];
     this.ww=[.079,.083,.079,.083,.083,.083,.079,.083,.071];
     this.hh=[.218,.273,.236,.264,.373,.255,.227,.282,.209];
-    this.cloudX=[.136,.193];
-    this.cloudW=[.079,.1];
-    this.cloudH=[.045,.062];
-    this.floorY=height*.62;
-    this.groundY=height*.92;
-    this.thinLine=unit*.0015;
-    this.normalLine=unit*.003;
-    this.themeY=height*.075;
+    this.sx=[.05,.107,.164,.229,.3,.364,.65,.714,.879,.943];
+    this.sy=[.1,.164,.082,.142,.191,.113,.105,.167,.136,.091];
+    this.floor=height*.62;
+    this.lineW=unit*.003;
   }
 
   change(){
     this.sky=(this.sky+1)%this.bg.length;
-    this.c=color(this.colors[this.sky][0],this.colors[this.sky][1],this.colors[this.sky][2]);
-  }
-
-  neon(w){
-    stroke(this.c);
-    strokeWeight(w);
+    let c=this.colors[this.sky];
+    this.c=color(c[0],c[1],c[2]);
   }
 
   display(){
     let b=this.bg[this.sky];
     background(b[0],b[1],b[2]);
-    let mx=width*.807,my=height*.23,moonSize=unit*.25;
     noStroke();
     fill(205,110,185);
-    ellipse(mx,my,moonSize);
+    ellipse(width*.807,height*.23,unit*.25);
     fill(222,142,202);
-    ellipse(mx,my,moonSize*.88);
-    if(this.sky==this.bg.length-1){
+    ellipse(width*.807,height*.23,unit*.22);
+    if(this.sky==2){
       fill(b[0],b[1],b[2]);
       ellipse(width*.85,height*.22,unit*.19);
     }
     stroke(238);
-    strokeWeight(this.normalLine);
+    strokeWeight(this.lineW);
     for(let i=0;i<this.sx.length;i++) point(this.sx[i]*width,this.sy[i]*height);
     noFill();
-    for(let i=0;i<this.cloudX.length;i++){
-      arc(this.cloudX[i]*width,height*.25,this.cloudW[i]*width,this.cloudH[i]*height,PI,PI*2);
-    }
+    arc(width*.136,height*.25,width*.079,height*.045,PI,PI*2);
     for(let i=0;i<this.xx.length;i++) this.construction(i);
-    this.ground();
+    noStroke();
+    fill(15,17,31);
+    rect(0,this.floor,width,height-this.floor);
+    stroke(this.c);
+    fill(22,24,42);
+    beginShape();
+    vertex(width*.16,height*.67);
+    vertex(width*.84,height*.67);
+    vertex(width*.97,game.bottom);
+    vertex(width*.03,game.bottom);
+    endShape(CLOSE);
   }
 
   construction(i){
-    let x=this.xx[i]*width,w=this.ww[i]*width,h=this.hh[i]*height,y=this.floorY-h;
-    let side=width*.012,top=height*.025,bottom=height*.015,gap=height*.04;
-    fill(27,29,68);
-    if(i==4) fill(38,35,88);
+    let x=this.xx[i]*width,w=this.ww[i]*width;
+    let h=this.hh[i]*height,y=this.floor-h;
+    let side=width*.012,gap=height*.04;
     stroke(20,21,50);
-    strokeWeight(this.normalLine);
+    fill(27,29,68);
+    if(game.repaired[i]) fill(55,70,105);
     rect(x,y,w,h);
-    this.neon(this.thinLine);
-    for(let wy=y+top;wy<this.floorY-bottom;wy+=gap) line(x+side,wy,x+w-side,wy);
-  }
-
-  ground(){
-    let top=this.floorY+height*.05;
-    noStroke();
-    fill(15,17,31);
-    rect(0,this.floorY,width,height-this.floorY);
-    fill(22,24,42);
-    this.neon(this.normalLine);
-    beginShape();
-    vertex(width*.16,top);
-    vertex(width*.84,top);
-    vertex(width*.97,this.groundY);
-    vertex(width*.03,this.groundY);
-    endShape(CLOSE);
-    line(0,this.groundY,width,this.groundY);
+    stroke(this.c);
+    if(game.repaired[i]) stroke(255,225,100);
+    for(let wy=y+gap;wy<this.floor-gap/2;wy+=gap) line(x+side,wy,x+w-side,wy);
   }
 }
 
 class Player {
   constructor(){
-    this.w=width*.19;
+    this.baseW=width*.17;
+    this.maxW=width*.27;
+    this.growth=width*.025;
     this.h=height*.025;
     this.minY=height*.22;
-    this.maxY=height*.87;
-    this.accel=width*.0025;
+    this.maxY=height*.86;
     this.speed=width*.01;
+    this.accel=width*.0025;
     this.friction=.8;
-    this.reset();
+    this.gunSize=unit*.018;
+    this.gunLength=unit*.055;
+    this.minAngle=-PI+.1;
+    this.maxAngle=-.1;
   }
 
   reset(){
+    this.w=this.baseW;
     this.x=width/2;
     this.y=this.maxY;
+    this.oldY=this.y;
     this.vx=0;
     this.vy=0;
-    this.oldMouseX=mouseX;
-    this.oldMouseY=mouseY;
+    this.mx=mouseX;
+    this.my=mouseY;
+    this.angle=-PI/2;
   }
 
   update(){
-    if(mouseX>=0 && mouseX<=width && mouseY>=0 && mouseY<=height){
-      if(mouseIsPressed || mouseX!=this.oldMouseX || mouseY!=this.oldMouseY){
-        this.x=mouseX;
-        this.y=mouseY;
-        this.vx=0;
-        this.vy=0;
-      }
+    this.oldY=this.y;
+    if(!game.aiming && mouseX>=0 && mouseX<=width &&
+       mouseY>=0 && mouseY<=height &&
+       (mouseX!=this.mx || mouseY!=this.my)){
+      this.x=mouseX;
+      this.y=mouseY;
+      this.vx=0;
+      this.vy=0;
     }
-    this.oldMouseX=mouseX;
-    this.oldMouseY=mouseY;
     if(keyIsDown(LEFT_ARROW)) this.vx-=this.accel;
     if(keyIsDown(RIGHT_ARROW)) this.vx+=this.accel;
     if(keyIsDown(UP_ARROW)) this.vy-=this.accel;
@@ -155,344 +144,297 @@ class Player {
     this.vy=constrain(this.vy*this.friction,-this.speed,this.speed);
     this.x=constrain(this.x+this.vx,this.w/2,width-this.w/2);
     this.y=constrain(this.y+this.vy,this.minY,this.maxY);
+    this.mx=mouseX;
+    this.my=mouseY;
+    this.aim();
+  }
+
+  grow(){
+    this.w=constrain(this.w+this.growth,this.baseW,this.maxW);
+    this.x=constrain(this.x,this.w/2,width-this.w/2);
+  }
+
+  aim(){
+    if(!game.shooting || !game.aiming) return;
+    let dx=mouseX-this.x;
+    let dy=mouseY-(this.y-this.h/2);
+    this.angle=constrain(atan2(dy,dx),this.minAngle,this.maxAngle);
+  }
+
+  turn(amount){
+    game.aiming=false;
+    this.angle=constrain(this.angle+amount,this.minAngle,this.maxAngle);
   }
 
   display(){
+    stroke(game.background.c);
+    strokeWeight(game.background.lineW);
     fill(31,35,66);
-    game.background.neon(game.background.normalLine);
     rect(this.x-this.w/2,this.y-this.h/2,this.w,this.h);
-  }
-}
-
-class Ball {
-  constructor(){
-    this.imageFile="circle1.png";
-    this.img=null;
-    this.loadPicture();
-    this.r=unit*.018;
-    this.rate=.45;
-    this.gravity=height*.00066*this.rate*this.rate;
-    this.speed=width*.004*this.rate;
-    this.launchVY=-height*.025*this.rate;
-    this.bounceSpeed=height*.03*this.rate*1.1;
-    this.angleLimit=PI/4;
-    this.spinRate=.35;
-    this.blastSize=unit*.14;
-  }
-
-  async loadPicture(){
-    this.img=await loadImage(this.imageFile);
-  }
-
-  reset(){
-    this.x=game.player.x;
-    this.y=game.player.y-(game.player.h+game.background.normalLine)/2-this.r;
-    this.vx=0;
-    this.vy=0;
-    this.angle=0;
-    this.active=false;
-    this.serve=false;
-  }
-
-  setSpeed(force){
-    let velocity=dist(0,0,this.vx,this.vy);
-    if(velocity>0 && (force || velocity>this.bounceSpeed)){
-      this.vx=this.vx/velocity*this.bounceSpeed;
-      this.vy=this.vy/velocity*this.bounceSpeed;
-    }
-  }
-
-  update(){
-    if(!this.active){
-      this.x=game.player.x;
-      this.y=game.player.y-(game.player.h+game.background.normalLine)/2-this.r;
-    }
-    if(this.serve){
-      this.serve=false;
-      if(!this.active){
-        this.vx=this.speed;
-        if(random(1)<.5) this.vx=-this.speed;
-        this.vy=this.launchVY;
-        this.active=true;
-      }
-    }
-    if(!this.active) return;
-    this.vy+=this.gravity;
-    this.setSpeed(false);
-    this.x+=this.vx;
-    this.y+=this.vy;
-    this.angle=(this.angle+this.vx/this.r*this.spinRate)%(PI*2);
-    if(this.x<this.r || this.x>width-this.r){
-      this.x=constrain(this.x,this.r,width-this.r);
-      this.vx=-this.vx;
-      this.setSpeed(true);
-    }
-    if(this.y<this.r){
-      this.y=this.r;
-      this.vy=-this.vy;
-      this.setSpeed(true);
-    }
-    if(this.y-this.r>game.background.groundY) this.reset();
-  }
-
-  bounce(p){
-    let top=p.y-(p.h+game.background.normalLine)/2;
-    let half=(p.w+game.background.normalLine)/2;
-    let touching=this.y+this.r>=top && this.y-this.r<=p.y+(p.h+game.background.normalLine)/2;
-    if(this.vy>0 && this.x+this.r>=p.x-half && this.x-this.r<=p.x+half && touching){
-      this.y=top-this.r;
-      let offset=constrain((this.x-p.x)/(p.w/2),-1,1);
-      let angle=-PI/2+offset*this.angleLimit;
-      this.vx=this.bounceSpeed*cos(angle);
-      this.vy=this.bounceSpeed*sin(angle);
-    }
-  }
-
-  display(){
-    if(game.state==2){
-      noStroke();
-      fill(255,110,50,180);
-      ellipse(this.x,this.y,this.blastSize);
-    }else{
+    if(game.shooting){
       push();
-      translate(this.x,this.y);
+      translate(this.x,this.y-this.h/2);
       rotate(this.angle);
-      if(this.img) image(this.img,0,0,this.r*2,this.r*2);
-      else{
-        noStroke();
-        fill(game.background.c);
-        ellipse(0,0,this.r*2);
-      }
-      stroke(245);
-      strokeWeight(game.background.normalLine);
-      line(-this.r*.6,0,this.r*.6,0);
+      stroke(255,220,100);
+      line(0,0,this.gunLength,0);
+      translate(this.gunLength,0);
+      noStroke();
+      fill(255,220,100);
+      beginShape();
+      vertex(this.gunSize,0);
+      vertex(0,-this.gunSize/2);
+      vertex(0,this.gunSize/2);
+      endShape(CLOSE);
       pop();
     }
   }
 }
 
+class Ball {
+  constructor(){
+    this.img=null;
+    this.loadPicture();
+    this.r=unit*.018;
+    this.gravity=height*.000134;
+    this.startVX=width*.0018;
+    this.startVY=-height*.01125;
+    this.speed=height*.01485;
+  }
+
+  async loadPicture(){
+    this.img=await loadImage("circle1.png");
+  }
+
+  reset(){
+    this.x=game.player.x;
+    this.y=game.player.y-game.player.h/2-this.r;
+    this.vx=0;
+    this.vy=0;
+    this.active=false;
+  }
+
+  launch(){
+    this.reset();
+    this.vx=this.startVX;
+    if(random(1)<.5) this.vx=-this.vx;
+    this.vy=this.startVY;
+    this.active=true;
+  }
+
+  limit(force){
+    let s=dist(0,0,this.vx,this.vy);
+    if(s>0 && (force || s>this.speed)){
+      this.vx=this.vx/s*this.speed;
+      this.vy=this.vy/s*this.speed;
+    }
+  }
+
+  update(){
+    if(!this.active){ this.reset(); return; }
+    this.vy+=this.gravity;
+    this.limit(false);
+    this.x+=this.vx;
+    this.y+=this.vy;
+    if(this.x<this.r || this.x>width-this.r){
+      this.x=constrain(this.x,this.r,width-this.r);
+      this.vx=-this.vx;
+      this.limit(true);
+    }
+    if(this.y-this.r<game.top){
+      this.y=game.top+this.r;
+      this.vy=-this.vy;
+      this.limit(true);
+    }
+    if(this.y-this.r>game.bottom) this.reset();
+  }
+
+  bounce(p){
+    let top=p.y-(p.h+game.background.lineW)/2;
+    let half=(p.w+game.background.lineW)/2;
+    if(this.vy>0 && this.x+this.r>=p.x-half && this.x-this.r<=p.x+half &&
+       this.y+this.r>=top && this.y-this.r<=p.y+p.h/2){
+      this.y=top-this.r;
+      let a=-PI/2+constrain((this.x-p.x)/(p.w/2),-1,1)*PI/4;
+      this.vx=this.speed*cos(a);
+      this.vy=this.speed*sin(a);
+    }
+  }
+
+  display(){
+    noStroke();
+    if(game.state==2){ fill(255,100,70,160); ellipse(this.x,this.y,this.r*6); }
+    if(this.img) image(this.img,this.x,this.y,this.r*2,this.r*2);
+    else{ fill(245); ellipse(this.x,this.y,this.r*2); }
+  }
+}
+
 class Target {
-  constructor(x,y){
-    this.imageFile="square.png";
+  constructor(x,y,id){
     this.img=null;
     this.loadPicture();
     this.x=x;
     this.y=y;
-    this.baseX=x;
-    this.baseY=y;
-    this.size=unit*.085;
-    this.speed=width*.00025;
-    this.range=width*.025;
-    this.noiseRange=height*.012;
-    this.noiseRate=.008;
-    this.noiseTime=random(100);
-    this.restoreTime=1800;
+    this.id=id;
     this.active=true;
-    this.goneTime=0;
+    this.size=unit*.075;
+    this.left=x-width*.045;
+    this.right=x+width*.045;
+    this.top=height*.26;
+    this.bottom=height*.4;
+    let s=unit*(.00045+game.stage*.00012);
+    this.vx=random(-s,s);
+    this.vy=random(-s,s);
   }
 
-  async loadPicture(){
-    this.img=await loadImage(this.imageFile);
+  async loadPicture(){ this.img=await loadImage("square.png"); }
+
+  update(){
+    if(!this.active) return;
+    this.x+=this.vx;
+    this.y+=this.vy;
+    if(this.x<this.left || this.x>this.right){
+      this.x=constrain(this.x,this.left,this.right);
+      this.vx=-this.vx;
+    }
+    if(this.y<this.top || this.y>this.bottom){
+      this.y=constrain(this.y,this.top,this.bottom);
+      this.vy=-this.vy;
+    }
+  }
+
+  hit(b){
+    let x=constrain(b.x,this.x-this.size/2,this.x+this.size/2);
+    let y=constrain(b.y,this.y-this.size/2,this.y+this.size/2);
+    return this.active && dist(b.x,b.y,x,y)<=b.r;
   }
 
   display(){
     if(!this.active) return;
     if(this.img) image(this.img,this.x,this.y,this.size,this.size);
-    else{
-      noStroke();
-      fill(80,200,130);
-      rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
-    }
-  }
-
-  update(){
-    if(!this.active && millis()-this.goneTime>=this.restoreTime){
-      this.active=true;
-      this.x=this.baseX+random(-this.range,this.range);
-    }
-    this.noiseTime+=this.noiseRate;
-    this.y=this.baseY+(noise(this.noiseTime)-.5)*this.noiseRange;
-    this.x+=this.speed;
-    if(this.x<this.baseX-this.range || this.x>this.baseX+this.range){
-      this.x=constrain(this.x,this.baseX-this.range,this.baseX+this.range);
-      this.speed=-this.speed;
-    }
-  }
-
-  check(x,y,r){
-    if(this.active && x+r>=this.x-this.size/2 && x-r<=this.x+this.size/2 &&
-       y+r>=this.y-this.size/2 && y-r<=this.y+this.size/2){
-      this.active=false;
-      this.goneTime=millis();
-      game.ball.vy=-game.ball.vy;
-      game.charge(int(random(game.diceSides))+1);
-    }
+    else{ fill(80,220,170); rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size); }
   }
 }
 
 class Bomb {
-  constructor(i,stage){
-    this.imageFile="bomb.png";
+  constructor(type){
     this.img=null;
     this.loadPicture();
-    this.type=i;
-    this.x=width*(.78-i*.56);
-    this.y=height*.44;
-    this.r=unit*.05;
-    this.chaseSpeed=unit*(.00055+stage*.0001);
-    this.patrolSpeed=width*.001;
+    this.type=type;
+    this.r=unit*.045;
+    this.x=width*(.76-type*.52);
+    this.y=height*.45;
+    this.speed=unit*(.0015+game.stage*.00015);
+    this.fallSpeed=height*.001;
   }
 
-  async loadPicture(){
-    this.img=await loadImage(this.imageFile);
+  async loadPicture(){ this.img=await loadImage("bomb.png"); }
+
+  update(ball){
+    if(this.type==0){
+      this.y+=this.fallSpeed;
+      if(this.y-this.r>game.bottom){
+        this.y=game.top-this.r;
+        this.x=random(this.r,width-this.r);
+      }
+    }else{
+      let d=dist(this.x,this.y,ball.x,ball.y);
+      if(d>0){
+        this.x+=(ball.x-this.x)/d*this.speed;
+        this.y+=(ball.y-this.y)/d*this.speed;
+      }
+    }
+  }
+
+  hit(b){ return dist(this.x,this.y,b.x,b.y)<this.r+b.r; }
+
+  display(){
+    noStroke();
+    if(this.img) image(this.img,this.x,this.y,this.r*2,this.r*2);
+    else{ fill(240,90,100); ellipse(this.x,this.y,this.r*2); }
+  }
+}
+
+class Part {
+  constructor(target){
+    this.x=target.x;
+    this.y=target.y;
+    this.oldY=this.y;
+    this.homeX=this.x;
+    this.homeY=this.y;
+    this.moveVX=target.vx;
+    this.moveVY=target.vy;
+    this.left=target.left;
+    this.right=target.right;
+    this.top=target.top;
+    this.bottom=target.bottom;
+    this.falling=false;
+    this.size=unit*.035;
+    this.vy=0;
+    this.gravity=height*.00008;
+    this.speed=height*.003;
   }
 
   update(){
-    if(this.type==0){
-      let d=dist(this.x,this.y,game.ball.x,game.ball.y);
-      if(d>0){
-        this.x+=(game.ball.x-this.x)/d*this.chaseSpeed;
-        this.y+=(game.ball.y-this.y)/d*this.chaseSpeed;
+    if(!this.falling){
+      this.x+=this.moveVX;
+      this.y+=this.moveVY;
+      if(this.x<this.left || this.x>this.right){
+        this.x=constrain(this.x,this.left,this.right);
+        this.moveVX=-this.moveVX;
+      }
+      if(this.y<this.top || this.y>this.bottom){
+        this.y=constrain(this.y,this.top,this.bottom);
+        this.moveVY=-this.moveVY;
       }
     }else{
-      this.x-=this.patrolSpeed;
-      if(this.x+this.r<0) this.x=width+this.r;
+      this.oldY=this.y;
+      this.vy=constrain(this.vy+this.gravity,0,this.speed);
+      this.y+=this.vy;
     }
   }
 
-  check(x,y,r){
-    if(dist(x,y,this.x,this.y)<r+this.r){
-      game.ball.active=false;
-      game.state=2;
-      game.effect=1;
-    }
+  hit(b){
+    let x=constrain(b.x,this.x-this.size/2,this.x+this.size/2);
+    let y=constrain(b.y,this.y-this.size/2,this.y+this.size/2);
+    return !this.falling && dist(b.x,b.y,x,y)<=b.r;
+  }
+
+  restore(){
+    this.x=this.homeX;
+    this.y=this.homeY;
+    this.oldY=this.y;
+    this.vy=0;
+    this.falling=false;
+  }
+
+  land(p){
+    let top=p.y-p.h/2,oldTop=p.oldY-p.h/2;
+    return this.falling && this.x+this.size/2>=p.x-p.w/2 && this.x-this.size/2<=p.x+p.w/2 &&
+           this.oldY+this.size/2<=oldTop && this.y+this.size/2>=top;
   }
 
   display(){
-    if(this.img) image(this.img,this.x,this.y,this.r*2,this.r*2);
-    else{
-      noStroke();
-      fill(235,90,110);
-      ellipse(this.x,this.y,this.r*2);
-    }
-    noFill();
-    stroke(235,90,110);
-    strokeWeight(game.background.thinLine);
-    ellipse(this.x,this.y,this.r*2);
+    stroke(255,240,160);
+    fill(255,185,65);
+    rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
   }
 }
 
-class Cards {
-  constructor(){
-    this.imageFile="card.png";
-    this.img=null;
-    this.loadPicture();
-    this.stage=0;
-    this.count=3;
-    this.x=[];
-    this.y=height*.53;
-    this.w=unit*.16;
-    this.h=unit*.23;
-    this.gap=width*.21;
-    for(let i=0;i<this.count;i++) this.x[i]=width/2+(i-(this.count-1)/2)*this.gap;
+class Bullet {
+  constructor(p){
+    this.r=unit*.008;
+    this.x=p.x;
+    this.y=p.y-p.h/2;
+    this.speed=unit*.012;
+    this.vx=this.speed*cos(p.angle);
+    this.vy=this.speed*sin(p.angle);
   }
 
-  async loadPicture(){
-    this.img=await loadImage(this.imageFile);
-  }
+  update(){ this.x+=this.vx; this.y+=this.vy; }
 
-  reset(stage){
-    if(this.stage!=stage){
-      this.bombIndex=int(random(this.count));
-      this.stage=stage;
-    }
-  }
+  outside(){ return this.x<-this.r || this.x>width+this.r || this.y<-this.r || this.y>height+this.r; }
 
-  display(){
-    for(let i=0;i<this.count;i++){
-      if(this.img) image(this.img,this.x[i],this.y,this.w,this.h);
-      else{
-        noStroke();
-        fill(35,45,70);
-        rect(this.x[i]-this.w/2,this.y-this.h/2,this.w,this.h);
-      }
-      noFill();
-      game.background.neon(game.background.normalLine);
-      rect(this.x[i]-this.w/2,this.y-this.h/2,this.w,this.h);
-      noStroke();
-      fill(245);
-      text("?",this.x[i],this.y);
-    }
-  }
-
-  select(x,y){
-    for(let i=0;i<this.count;i++){
-      if(x>=this.x[i]-this.w/2 && x<=this.x[i]+this.w/2 &&
-         y>=this.y-this.h/2 && y<=this.y+this.h/2){
-        if(i==this.bombIndex){
-          game.resetStage();
-          game.state=0;
-          game.notice="폭탄 카드! 다시 충전하세요 · 카드 위치 유지";
-          game.effect=1;
-        }else{
-          game.maze.reset();
-          game.state=4;
-          game.effect=0;
-        }
-        break;
-      }
-    }
-  }
-}
-
-class Maze {
-  constructor(){
-    this.map=[[0,0,1,0,0],[1,0,1,0,1],[0,0,0,0,0],[0,1,1,1,0],[0,0,1,0,0]];
-    this.size=unit*.055;
-    this.x=width/2-this.map[0].length*this.size/2;
-    this.y=height*.4;
-    this.reset();
-  }
-
-  reset(){
-    this.routeX=0;
-    this.routeY=0;
-  }
-
-  display(){
-    for(let y=0;y<this.map.length;y++){
-      for(let x=0;x<this.map[y].length;x++){
-        fill(15,25,40);
-        if(this.map[y][x]==1) fill(70,85,110);
-        if(x==this.map[0].length-1 && y==this.map.length-1) fill(255,210,80);
-        stroke(80);
-        rect(this.x+x*this.size,this.y+y*this.size,this.size,this.size);
-      }
-    }
-    noStroke();
-    fill(game.background.c);
-    ellipse(this.x+(this.routeX+.5)*this.size,this.y+(this.routeY+.5)*this.size,this.size*.5);
-  }
-
-  move(k){
-    let x=this.routeX,y=this.routeY;
-    if(k==LEFT_ARROW) x--;
-    if(k==RIGHT_ARROW) x++;
-    if(k==UP_ARROW) y--;
-    if(k==DOWN_ARROW) y++;
-    x=constrain(x,0,this.map[0].length-1);
-    y=constrain(y,0,this.map.length-1);
-    if(this.map[y][x]==0){ this.routeX=x; this.routeY=y; }
-    if(this.routeX==this.map[0].length-1 && this.routeY==this.map.length-1){
-      if(game.stage<game.lastStage){
-        game.stage++;
-        game.resetStage();
-        game.state=0;
-        game.notice="미로 통과! STAGE "+game.stage;
-      }else game.state=3;
-      game.effect=2;
-    }
-  }
+  display(){ noStroke(); fill(255,220,100); ellipse(this.x,this.y,this.r*2); }
 }
 
 class Game {
@@ -500,184 +442,207 @@ class Game {
     this.stage=1;
     this.lastStage=3;
     this.state=-1;
-    this.effect=-1;
-    this.energyBase=3;
-    this.energyStep=3;
-    this.diceSides=3;
+    this.effects=[false,false,false];
+    this.repaired=[];
+    this.repairOrder=[1,7,0,4,2,6,3,5,8];
     this.background=new Background();
     this.player=new Player();
     this.ball=new Ball();
-    this.cards=new Cards();
-    this.maze=new Maze();
-
-    this.targets=[];
-    this.bombs=[];
-
-    this.titleY=height*.045;
-    this.infoY=height*.1;
-    this.noticeY=height*.19;
-    this.helpY=height*.96;
-    this.titleSize=unit*.035;
-    this.smallSize=unit*.025;
-    this.bigSize=unit*.045;
-    this.panelX=width*.07;
-    this.panelY=height*.28;
-    this.panelW=width*.86;
-    this.panelH=height*.48;
-    this.messageY=height*.34;
-    this.guideY=height*.71;
-    this.barX=width*.25;
-    this.barY=height*.14;
-    this.barW=width*.5;
-    this.barH=height*.018;
-    this.messages=["ENTER: 시작","","카드 선택","공이 폭탄에 닿았습니다","ALL CLEAR","미로 탈출"];
-    this.guides=["공 반사 → 에너지 충전 → 카드 → 미로","","폭탄 카드: 다시 충전 / 정상 카드: 미로 이동","ENTER 또는 R: 같은 스테이지 재시작","R: 처음부터","방향키로 노란 출구에 도착하세요"];
+    this.top=height*.2;
+    this.bottom=height*.92;
+    this.turn=PI/18;
+    this.title="CITY REPAIR";
+    this.ballTask="공으로 초록 과녁을 모두 맞히세요";
+    this.shootTask="노란 네모를 쏜 뒤 떨어지는 부품을 판으로 받으세요";
+    this.messages=["ENTER: 시작","","","공이 폭탄에 닿았습니다","ALL CLEAR"];
   }
 
-  resetStage(){
+  reset(){
+    this.aiming=false;
+    this.shooting=false;
+    this.ammo=3;
+    this.count=this.stage+1;
+    this.collected=0;
+    this.targets=[];
+    this.bombs=[];
+    this.parts=[];
+    this.bullets=[];
     this.player.reset();
     this.ball.reset();
-
-    this.targets=[];
-    let count=this.stage+1;
-
-    for(let i=0;i<count;i++){
-      let x=width*(i+1)/(count+1),y=height*(.28+(i%2)*.065);
-      this.targets[i]=new Target(x,y);
+    let first=0;
+    for(let s=1;s<this.stage;s++) first+=s+1;
+    this.first=first;
+    for(let i=0;i<this.count;i++){
+      let id=this.repairOrder[first+i];
+      this.repaired[id]=false;
+      this.targets[i]=new Target(width*(i+1)/(this.count+1),height*(.28+(i%2)*.065),id);
     }
-
-    this.bombs=[];
-
-    for(let i=0;i<this.stage-1;i++){
-      this.bombs[i]=new Bomb(i,this.stage);
-    }
-
-    this.energyNeed=this.stage*this.energyStep+this.energyBase;
-    this.energy=0;
-    this.dice=0;
-    this.notice="";
-    this.cards.reset(this.stage);
+    for(let i=0;i<this.stage-1;i++) this.bombs[i]=new Bomb(i);
   }
 
   update(){
     if(this.state!=0) return;
-
     this.player.update();
-
-    for(let i=0;i<this.targets.length;i++){
-      this.targets[i].update();
+    if(this.shooting){
+      this.updateBullets();
+      this.collectParts();
+      if(this.parts.length==0) this.nextStage();
+      return;
     }
-
+    for(let i=0;i<this.targets.length;i++) this.targets[i].update();
     this.ball.update();
     if(!this.ball.active) return;
-
+    for(let i=0;i<this.bombs.length;i++){
+      this.bombs[i].update(this.ball);
+      if(this.bombs[i].hit(this.ball)){
+        this.state=2;
+        this.play(1);
+        return;
+      }
+    }
     this.ball.bounce(this.player);
-
-    for(let i=0;i<this.bombs.length;i++){
-      this.bombs[i].update();
-    }
-
-    for(let i=0;i<this.bombs.length;i++){
-      this.bombs[i].check(this.ball.x,this.ball.y,this.ball.r);
-      if(this.state==2) return;
-    }
-
     for(let i=0;i<this.targets.length;i++){
-      if(this.targets[i].active){
-        this.targets[i].check(this.ball.x,this.ball.y,this.ball.r);
-        if(!this.targets[i].active) break;
+      if(this.targets[i].hit(this.ball)){
+        this.ball.vy=-this.ball.vy;
+        this.targets[i].active=false;
+        this.play(0);
+        break;
+      }
+    }
+    let remaining=0;
+    for(let i=0;i<this.targets.length;i++){
+      if(this.targets[i].active) remaining++;
+    }
+    if(remaining==0) this.startShooting();
+  }
+
+  display(){
+    for(let i=0;i<this.effects.length;i++){
+      if(this.effects[i] && sounds[i]) sounds[i].play();
+      this.effects[i]=false;
+    }
+    this.background.display();
+    for(let i=0;i<this.targets.length;i++) this.targets[i].display();
+    for(let i=0;i<this.bombs.length;i++) this.bombs[i].display();
+    for(let i=0;i<this.parts.length;i++) this.parts[i].display();
+    for(let i=0;i<this.bullets.length;i++) this.bullets[i].display();
+    this.player.display();
+    if(!this.shooting) this.ball.display();
+    noStroke(); fill(245); textSize(unit*.033);
+    text("NIGHT CITY - "+this.title,width/2,height*.04);
+    textSize(unit*.024);
+    let restored=0;
+    for(let i=0;i<this.repaired.length;i++){
+      if(this.repaired[i]) restored++;
+    }
+    text("STAGE "+this.stage+" / "+this.lastStage+"    복구 "+restored+" / "+this.background.xx.length+"    탄약 "+this.ammo,width/2,height*.09);
+    let task=this.ballTask;
+    if(this.shooting) task=this.shootTask;
+    text(task,width/2,height*.135);
+    text("판: 마우스·방향키 / 클릭: 공 출발·사격 / SPACE: 사격 / R: 현재 단계 재시작",width/2,height*.95);
+    let mode="초록 과녁을 모두 없애면 사격 단계로 전환";
+    if(this.shooting) mode="Q: 마우스 조준 켜기 / A·D: 각도 조절";
+    if(this.aiming) mode="마우스: 조준 / 방향키: 판 이동 / Q: 마우스로 판 이동";
+    text(mode,width/2,height*.98);
+    if(this.state!=0){
+      fill(15,17,31,240); rect(width*.08,height*.39,width*.84,height*.2);
+      fill(this.background.c); textSize(unit*.045);
+      text(this.messages[this.state+1],width/2,height*.46);
+      fill(245); textSize(unit*.025);
+      text("ENTER: 시작·재도전 / R: 재시작 / 단계 이동은 자동",width/2,height*.54);
+    }
+  }
+
+  play(i){ this.effects[i]=true; }
+
+  click(x,y){
+    if(x<0 || x>width || y<0 || y>height) return;
+    if(y<height*.065){ this.background.change(); return; }
+    if(this.state!=0) return;
+    this.player.update();
+    if(this.shooting) this.fire();
+    else if(!this.ball.active) this.ball.launch();
+  }
+
+  press(k){
+    switch(k){
+      case "Enter":
+        if(this.state==-1 || this.state==2){ this.reset(); this.state=0; }
+        break;
+      case "r": case "R":
+        if(this.state==-1) break;
+        if(this.state==3){ this.stage=1; this.repaired=[]; }
+        this.reset(); this.state=0;
+        break;
+      case "q": case "Q":
+        if(this.state==0 && this.shooting) this.aiming=!this.aiming;
+        break;
+      case "a": case "A":
+        if(this.state!=0 || !this.shooting) break;
+        this.player.turn(-this.turn);
+        break;
+      case "d": case "D":
+        if(this.state!=0 || !this.shooting) break;
+        this.player.turn(this.turn);
+        break;
+      case " ": this.fire(); break;
+    }
+  }
+
+  startShooting(){
+    this.shooting=true;
+    this.aiming=false; // 노란 과녁 단계에서 마우스로 판 이동 가능
+    this.ball.reset();
+    this.bombs=[];
+    for(let i=0;i<this.targets.length;i++){
+      this.parts.push(new Part(this.targets[i]));
+    }
+  }
+
+  collectParts(){
+    for(let i=this.parts.length-1;i>=0;i--){
+      let part=this.parts[i];
+      part.update();
+      if(part.land(this.player)){
+        this.collected++;
+        let id=this.repairOrder[this.first+this.collected-1];
+        this.repaired[id]=true;
+        this.ammo++;
+        this.player.grow();
+        this.parts.splice(i,1);
+        this.play(0);
+      }else if(part.y-part.size/2>this.bottom){
+        part.restore();
       }
     }
   }
 
-  display(){
-    this.background.display();
-
-    for(let i=0;i<this.targets.length;i++){
-      this.targets[i].display();
-    }
-
-    this.ball.display();
-
-    for(let i=0;i<this.bombs.length;i++){
-      this.bombs[i].display();
-    }
-
-    this.player.display();
-    this.displayText();
-
-    if(this.effect>=0){
-      if(sounds[this.effect]) sounds[this.effect].play();
-      this.effect=-1;
-    }
+  fire(){
+    if(this.state!=0 || !this.shooting || this.ammo<=0) return;
+    this.bullets.push(new Bullet(this.player));
+    this.ammo--;
   }
 
-  displayText(){
-    noStroke();
-    fill(245);
-    textSize(this.titleSize);
-    text("NIGHT CITY - POWER MAZE",width/2,this.titleY);
-    textSize(this.smallSize);
-    text("STAGE "+this.stage+" / "+this.lastStage+"   충전 "+this.energy+" / "+this.energyNeed+"   최근 획득 +"+this.dice,width/2,this.infoY);
-    fill(45,48,70);
-    rect(this.barX,this.barY,this.barW,this.barH);
-    fill(this.background.c);
-    rect(this.barX,this.barY,this.barW*this.energy/this.energyNeed,this.barH);
-    fill(245);
-    text(this.notice,width/2,this.noticeY);
-    text("판: 마우스·방향키 / 클릭: 공 출발 / R: 현재 단계 재시작",width/2,this.helpY);
-    if(this.state==0) return;
-    fill(15,17,31,240);
-    rect(this.panelX,this.panelY,this.panelW,this.panelH);
-    fill(this.background.c);
-    textSize(this.bigSize);
-    text(this.messages[this.state+1],width/2,this.messageY);
-    if(this.state==1) this.cards.display();
-    if(this.state==4) this.maze.display();
-    noStroke();
-    fill(245);
-    textSize(this.smallSize);
-    text(this.guides[this.state+1],width/2,this.guideY);
-  }
-
-  charge(amount){
-    this.dice=amount;
-    this.energy+=amount;
-    this.effect=0;
-    this.notice="과녁 명중! +"+amount;
-    if(this.energy>=this.energyNeed){
-      this.energy=this.energyNeed;
-      this.state=1;
-    }
-  }
-
-  click(x,y){
-    if(this.state==1) this.cards.select(x,y);
-    else if(this.state==0 && !this.ball.active && x>=0 && x<width &&
-            y>=this.player.minY && y<=this.background.groundY){
-      this.ball.serve=true;
-    }else if(x>=0 && x<width && y>=0 && y<this.background.themeY){
-      this.background.change();
-    }
-  }
-
-  press(k){
-    if(k==LEFT_ARROW || k==RIGHT_ARROW || k==UP_ARROW || k==DOWN_ARROW){
-      if(this.state==4) this.maze.move(k);
-      return;
-    }
-    switch(k){
-      case "Enter":
-        if(this.state==-1 || this.state==2){ this.resetStage(); this.state=0; }
-        break;
-      case "r":
-      case "R":
-        if(this.state!=-1){
-          if(this.state==3){ this.stage=1; this.cards.stage=0; }
-          this.resetStage();
-          this.state=0;
+  updateBullets(){
+    for(let i=this.bullets.length-1;i>=0;i--){
+      this.bullets[i].update();
+      if(this.bullets[i].outside()) this.bullets.splice(i,1);
+      else{
+        for(let j=this.parts.length-1;j>=0;j--){
+          if(this.parts[j].hit(this.bullets[i])){
+            this.parts[j].falling=true;
+            this.bullets.splice(i,1);
+            this.play(1);
+            break;
+          }
         }
-        break;
+      }
     }
+  }
+
+  nextStage(){
+    this.play(2);
+    if(this.stage<this.lastStage){ this.stage++; this.reset(); }
+    else this.state=3;
   }
 }
