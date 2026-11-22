@@ -1,4 +1,3 @@
-
 let canvasW=800,canvasH=600,unit,game;
 let sounds=[],soundFiles=["catch.mp3","burst.mp3","claps.mp3"];
 
@@ -128,7 +127,7 @@ class Player {
 
   update(){
     this.oldY=this.y;
-    if(!game.aiming && mouseX>=0 && mouseX<=width &&
+    if(mouseX>=0 && mouseX<=width &&
        mouseY>=0 && mouseY<=height &&
        (mouseX!=this.mx || mouseY!=this.my)){
       this.x=mouseX;
@@ -146,7 +145,6 @@ class Player {
     this.y=constrain(this.y+this.vy,this.minY,this.maxY);
     this.mx=mouseX;
     this.my=mouseY;
-    this.aim();
   }
 
   grow(){
@@ -154,15 +152,7 @@ class Player {
     this.x=constrain(this.x,this.w/2,width-this.w/2);
   }
 
-  aim(){
-    if(!game.shooting || !game.aiming) return;
-    let dx=mouseX-this.x;
-    let dy=mouseY-(this.y-this.h/2);
-    this.angle=constrain(atan2(dy,dx),this.minAngle,this.maxAngle);
-  }
-
   turn(amount){
-    game.aiming=false;
     this.angle=constrain(this.angle+amount,this.minAngle,this.maxAngle);
   }
 
@@ -458,7 +448,6 @@ class Game {
   }
 
   reset(){
-    this.aiming=false;
     this.shooting=false;
     this.ammo=3;
     this.count=this.stage+1;
@@ -541,8 +530,7 @@ class Game {
     text(task,width/2,height*.135);
     text("판: 마우스·방향키 / 클릭: 공 출발·사격 / SPACE: 사격 / R: 현재 단계 재시작",width/2,height*.95);
     let mode="초록 과녁을 모두 없애면 사격 단계로 전환";
-    if(this.shooting) mode="Q: 마우스 조준 켜기 / A·D: 각도 조절";
-    if(this.aiming) mode="마우스: 조준 / 방향키: 판 이동 / Q: 마우스로 판 이동";
+    if(this.shooting) mode="마우스로 판 이동 / A·D: 각도 조절 / 클릭·SPACE: 사격";
     text(mode,width/2,height*.98);
     if(this.state!=0){
       fill(15,17,31,240); rect(width*.08,height*.39,width*.84,height*.2);
@@ -574,9 +562,6 @@ class Game {
         if(this.state==3){ this.stage=1; this.repaired=[]; }
         this.reset(); this.state=0;
         break;
-      case "q": case "Q":
-        if(this.state==0 && this.shooting) this.aiming=!this.aiming;
-        break;
       case "a": case "A":
         if(this.state!=0 || !this.shooting) break;
         this.player.turn(-this.turn);
@@ -591,7 +576,6 @@ class Game {
 
   startShooting(){
     this.shooting=true;
-    this.aiming=false; // 노란 과녁 단계에서 마우스로 판 이동 가능
     this.ball.reset();
     this.bombs=[];
     for(let i=0;i<this.targets.length;i++){
