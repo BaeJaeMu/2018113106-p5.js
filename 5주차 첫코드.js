@@ -259,18 +259,22 @@ class Ball {
 }
 
 class Target {
-  constructor(x,y,id){
+  constructor(x,y){
     this.img=null;
     this.loadPicture();
     this.x=x;
     this.y=y;
-    this.id=id;
     this.active=true;
+    this.yellow=false;
     this.size=unit*.075;
     this.left=x-width*.045;
     this.right=x+width*.045;
     this.top=height*.26;
     this.bottom=height*.4;
+    this.falling=false;
+    this.fallVY=0;
+    this.gravity=height*.00008;
+    this.fallSpeed=height*.003;
     let s=unit*(.00045+game.stage*.00012);
     this.vx=random(-s,s);
     this.vy=random(-s,s);
@@ -278,29 +282,62 @@ class Target {
 
   async loadPicture(){ this.img=await loadImage("square.png"); }
 
+  turnYellow(){
+    this.active=true;
+    this.yellow=true;
+    this.size=unit*.035;
+    this.homeX=this.x;
+    this.homeY=this.y;
+    this.oldY=this.y;
+  }
+
   update(){
     if(!this.active) return;
-    this.x+=this.vx;
-    this.y+=this.vy;
-    if(this.x<this.left || this.x>this.right){
-      this.x=constrain(this.x,this.left,this.right);
-      this.vx=-this.vx;
-    }
-    if(this.y<this.top || this.y>this.bottom){
-      this.y=constrain(this.y,this.top,this.bottom);
-      this.vy=-this.vy;
+    this.oldY=this.y;
+    if(this.falling){
+      this.fallVY=constrain(this.fallVY+this.gravity,0,this.fallSpeed);
+      this.y+=this.fallVY;
+    }else{
+      this.x+=this.vx;
+      this.y+=this.vy;
+      if(this.x<this.left || this.x>this.right){
+        this.x=constrain(this.x,this.left,this.right);
+        this.vx=-this.vx;
+      }
+      if(this.y<this.top || this.y>this.bottom){
+        this.y=constrain(this.y,this.top,this.bottom);
+        this.vy=-this.vy;
+      }
     }
   }
 
   hit(b){
     let x=constrain(b.x,this.x-this.size/2,this.x+this.size/2);
     let y=constrain(b.y,this.y-this.size/2,this.y+this.size/2);
-    return this.active && dist(b.x,b.y,x,y)<=b.r;
+    return this.active && !this.falling && dist(b.x,b.y,x,y)<=b.r;
+  }
+
+  restore(){
+    this.x=this.homeX;
+    this.y=this.homeY;
+    this.oldY=this.y;
+    this.fallVY=0;
+    this.falling=false;
+  }
+
+  land(p){
+    let top=p.y-p.h/2,oldTop=p.oldY-p.h/2;
+    return this.falling && this.x+this.size/2>=p.x-p.w/2 && this.x-this.size/2<=p.x+p.w/2 &&
+           this.oldY+this.size/2<=oldTop && this.y+this.size/2>=top;
   }
 
   display(){
     if(!this.active) return;
-    if(this.img) image(this.img,this.x,this.y,this.size,this.size);
+    if(this.yellow){
+      stroke(255,240,160);
+      fill(255,185,65);
+      rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
+    }else if(this.img) image(this.img,this.x,this.y,this.size,this.size);
     else{ fill(80,220,170); rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size); }
   }
 }
@@ -341,72 +378,6 @@ class Bomb {
     noStroke();
     if(this.img) image(this.img,this.x,this.y,this.r*2,this.r*2);
     else{ fill(240,90,100); ellipse(this.x,this.y,this.r*2); }
-  }
-}
-
-class Part {
-  constructor(target){
-    this.x=target.x;
-    this.y=target.y;
-    this.oldY=this.y;
-    this.homeX=this.x;
-    this.homeY=this.y;
-    this.moveVX=target.vx;
-    this.moveVY=target.vy;
-    this.left=target.left;
-    this.right=target.right;
-    this.top=target.top;
-    this.bottom=target.bottom;
-    this.falling=false;
-    this.size=unit*.035;
-    this.vy=0;
-    this.gravity=height*.00008;
-    this.speed=height*.003;
-  }
-
-  update(){
-    if(!this.falling){
-      this.x+=this.moveVX;
-      this.y+=this.moveVY;
-      if(this.x<this.left || this.x>this.right){
-        this.x=constrain(this.x,this.left,this.right);
-        this.moveVX=-this.moveVX;
-      }
-      if(this.y<this.top || this.y>this.bottom){
-        this.y=constrain(this.y,this.top,this.bottom);
-        this.moveVY=-this.moveVY;
-      }
-    }else{
-      this.oldY=this.y;
-      this.vy=constrain(this.vy+this.gravity,0,this.speed);
-      this.y+=this.vy;
-    }
-  }
-
-  hit(b){
-    let x=constrain(b.x,this.x-this.size/2,this.x+this.size/2);
-    let y=constrain(b.y,this.y-this.size/2,this.y+this.size/2);
-    return !this.falling && dist(b.x,b.y,x,y)<=b.r;
-  }
-
-  restore(){
-    this.x=this.homeX;
-    this.y=this.homeY;
-    this.oldY=this.y;
-    this.vy=0;
-    this.falling=false;
-  }
-
-  land(p){
-    let top=p.y-p.h/2,oldTop=p.oldY-p.h/2;
-    return this.falling && this.x+this.size/2>=p.x-p.w/2 && this.x-this.size/2<=p.x+p.w/2 &&
-           this.oldY+this.size/2<=oldTop && this.y+this.size/2>=top;
-  }
-
-  display(){
-    stroke(255,240,160);
-    fill(255,185,65);
-    rect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);
   }
 }
 
@@ -454,7 +425,6 @@ class Game {
     this.collected=0;
     this.targets=[];
     this.bombs=[];
-    this.parts=[];
     this.bullets=[];
     this.player.reset();
     this.ball.reset();
@@ -464,7 +434,7 @@ class Game {
     for(let i=0;i<this.count;i++){
       let id=this.repairOrder[first+i];
       this.repaired[id]=false;
-      this.targets[i]=new Target(width*(i+1)/(this.count+1),height*(.28+(i%2)*.065),id);
+      this.targets[i]=new Target(width*(i+1)/(this.count+1),height*(.28+(i%2)*.065));
     }
     for(let i=0;i<this.stage-1;i++) this.bombs[i]=new Bomb(i);
   }
@@ -475,7 +445,7 @@ class Game {
     if(this.shooting){
       this.updateBullets();
       this.collectParts();
-      if(this.parts.length==0) this.nextStage();
+      if(this.targets.length==0) this.nextStage();
       return;
     }
     for(let i=0;i<this.targets.length;i++) this.targets[i].update();
@@ -513,7 +483,6 @@ class Game {
     this.background.display();
     for(let i=0;i<this.targets.length;i++) this.targets[i].display();
     for(let i=0;i<this.bombs.length;i++) this.bombs[i].display();
-    for(let i=0;i<this.parts.length;i++) this.parts[i].display();
     for(let i=0;i<this.bullets.length;i++) this.bullets[i].display();
     this.player.display();
     if(!this.shooting) this.ball.display();
@@ -579,13 +548,13 @@ class Game {
     this.ball.reset();
     this.bombs=[];
     for(let i=0;i<this.targets.length;i++){
-      this.parts.push(new Part(this.targets[i]));
+      this.targets[i].turnYellow();
     }
   }
 
   collectParts(){
-    for(let i=this.parts.length-1;i>=0;i--){
-      let part=this.parts[i];
+    for(let i=this.targets.length-1;i>=0;i--){
+      let part=this.targets[i];
       part.update();
       if(part.land(this.player)){
         this.collected++;
@@ -593,7 +562,7 @@ class Game {
         this.repaired[id]=true;
         this.ammo++;
         this.player.grow();
-        this.parts.splice(i,1);
+        this.targets.splice(i,1);
         this.play(0);
       }else if(part.y-part.size/2>this.bottom){
         part.restore();
@@ -612,9 +581,9 @@ class Game {
       this.bullets[i].update();
       if(this.bullets[i].outside()) this.bullets.splice(i,1);
       else{
-        for(let j=this.parts.length-1;j>=0;j--){
-          if(this.parts[j].hit(this.bullets[i])){
-            this.parts[j].falling=true;
+        for(let j=this.targets.length-1;j>=0;j--){
+          if(this.targets[j].hit(this.bullets[i])){
+            this.targets[j].falling=true;
             this.bullets.splice(i,1);
             this.play(1);
             break;
